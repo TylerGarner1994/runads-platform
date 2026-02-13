@@ -8,6 +8,30 @@
   },
   "rewrites": [
     {
+      "source": "/api/pages/:path*",
+      "destination": "/api/pages"
+    },
+    {
+      "source": "/api/clients/:path*",
+      "destination": "/api/clients"
+    },
+    {
+      "source": "/api/leads/:path*",
+      "destination": "/api/leads"
+    },
+    {
+      "source": "/api/track/:path*",
+      "destination": "/api/track"
+    },
+    {
+      "source": "/api/convert/:path*",
+      "destination": "/api/track"
+    },
+    {
+      "source": "/api/submit/:path*",
+      "destination": "/api/track"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/public/$1"
     }
