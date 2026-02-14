@@ -1122,11 +1122,15 @@ loadClients();
 loadStats();
 loadClientsForSelects();
 }
+function refreshCurrentView(){
+if(app.currentView){showView(app.currentView);}
+}
 function loadPages(){
 fetch('/api/pages')
 .then(res => res.json())
 .then(data =>{
 app.pages = data.pages || [];
+refreshCurrentView();
 })
 .catch(err => console.error('Failed to load pages:', err));
 }
@@ -1135,6 +1139,7 @@ fetch('/api/clients')
 .then(res => res.json())
 .then(data =>{
 app.clients = data.clients || [];
+loadClientsForSelects();
 })
 .catch(err => console.error('Failed to load clients:', err));
 }
@@ -1143,6 +1148,7 @@ fetch('/api/stats')
 .then(res => res.json())
 .then(data =>{
 app.stats = data;
+refreshCurrentView();
 })
 .catch(err => console.error('Failed to load stats:', err));
 }
