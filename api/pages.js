@@ -73,7 +73,11 @@ export default async function handler(req, res) {
         if (!page) return res.status(404).json({ error: 'Page not found' });
         return res.json(page);
       }
-      const pageList = pages.map(({ html_content, ...rest }) => rest);
+      const pageList = pages.map(({ html_content, ...rest }) => ({
+        ...rest,
+        url: rest.url || `/p/${rest.slug}`,
+        clientName: rest.client_name || rest.clientName || ''
+      }));
       return res.json({ pages: pageList });
     }
 

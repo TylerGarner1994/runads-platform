@@ -32,7 +32,11 @@
       "destination": "/api/track"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/p/:slug",
+      "destination": "/api/page-view"
+    },
+    {
+      "source": "/((?!api/)(?!p/).*)",
       "destination": "/public/$1"
     }
   ],
