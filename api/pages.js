@@ -74,7 +74,7 @@ export default async function handler(req, res) {
         return res.json(page);
       }
       const pageList = pages.map(({ html_content, ...rest }) => rest);
-      return res.json(pageList);
+      return res.json({ pages: pageList });
     }
 
     if (req.method === 'POST') {

@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       const { data } = await getGitHubFile(DATA_PATH);
       const clients = data || [];
       if (cid) { const c = clients.find(x => x.id === cid); return c ? res.json(c) : res.status(404).json({ error: 'Not found' }); }
-      return res.json(clients);
+      return res.json({ clients });
     }
     if (req.method === 'POST') {
       const { data, sha } = await getGitHubFile(DATA_PATH);

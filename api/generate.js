@@ -89,6 +89,45 @@ const PSYCHOLOGY_FRAMEWORK = `
 // ============================================================
 // MAIN HANDLER
 // ============================================================
+// GitHub storage helpers (for saving generated pages)
+const GITHUB_API = 'https://api.github.com';
+
+async function getGitHubFile(path) {
+  const owner = process.env.GITHUB_OWNER || 'TylerGarner1994';
+  const repo = process.env.GITHUB_REPO || 'runads-platform';
+  const token = process.env.GITHUB_TOKEN;
+  const resp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
+    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (resp.status === 404) return { data: null, sha: null };
+  if (!resp.ok) throw new Error(`GitHub API error: ${resp.status}`);
+  const file = await resp.json();
+  const content = JSON.parse(Buffer.from(file.content, 'base64').toString('utf-8'));
+  return { data: content, sha: file.sha };
+}
+
+async function saveGitHubFile(path, content, sha, message) {
+  const owner = process.env.GITHUB_OWNER || 'TylerGarner1994';
+  const repo = process.env.GITHUB_REPO || 'runads-platform';
+  const token = process.env.GITHUB_TOKEN;
+  const body = { message: message || 'Update data', content: Buffer.from(JSON.stringify(content, null, 2)).toString('base64') };
+  if (sha) body.sha = sha;
+  const resp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) { const err = await resp.json(); throw new Error(`GitHub save error: ${err.message}`); }
+  return await resp.json();
+}
+
+function generateId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 12; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+  return result;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -99,18 +138,18 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
-  const {
-    page_type,          // advertorial, listicle, quiz, vip, calculator
-    product_url,        // URL or description of the offer
-    target_audience,    // Description of ideal customer
-    tone,               // Professional, conversational, urgent, etc.
-    client_data,        // Client brand data (colors, fonts, voice, claims, testimonials)
-    hook_framework,     // Which hook pattern to use
-    additional_context  // Any extra instructions
-  } = req.body;
+  // Accept both frontend field names (type, url, audience) and backend names (page_type, product_url, target_audience)
+  const page_type = req.body.page_type || req.body.type || 'advertorial';
+  const product_url = req.body.product_url || req.body.url;
+  const target_audience = req.body.target_audience || req.body.audience || '';
+  const tone = req.body.tone || 'Professional & Trustworthy';
+  const client_data = req.body.client_data || null;
+  const clientId = req.body.clientId || req.body.client_id || null;
+  const hook_framework = req.body.hook_framework || null;
+  const additional_context = req.body.additional_context || null;
 
-  if (!page_type || !product_url) {
-    return res.status(400).json({ error: 'page_type and product_url are required' });
+  if (!product_url) {
+    return res.status(400).json({ error: 'A product URL or description is required (pass as "url" or "product_url")' });
   }
 
   try {
@@ -227,17 +266,57 @@ Return ONLY the complete modified HTML. Start with <!DOCTYPE html>.`;
     }
 
     // ============================================================
-    // Return result
+    // PHASE 4: Save page to storage
     // ============================================================
     const totalTokens = (genResponse.usage?.input_tokens || 0) + (genResponse.usage?.output_tokens || 0) +
                         (reviewResponse.usage?.input_tokens || 0) + (reviewResponse.usage?.output_tokens || 0);
 
+    let savedPage = null;
+    try {
+      const DATA_PATH = 'data/pages.json';
+      const { data, sha } = await getGitHubFile(DATA_PATH);
+      const pages = data || [];
+      const id = generateId();
+      const pageName = `${page_type.charAt(0).toUpperCase() + page_type.slice(1)} - ${product_url.substring(0, 50)}`;
+      const pageSlug = pageName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 60);
+      const now = new Date().toISOString();
+      savedPage = {
+        id,
+        name: pageName,
+        slug: pageSlug,
+        html_content: html,
+        client_id: clientId,
+        client_name: '',
+        page_type: page_type,
+        template_type: null,
+        status: 'draft',
+        meta_title: pageName,
+        meta_description: `${page_type} page for ${product_url.substring(0, 100)}`,
+        views: 0,
+        leads: 0,
+        custom_domain: null,
+        expert_scores: reviewData,
+        created_at: now,
+        updated_at: now,
+        deployed_at: null
+      };
+      pages.unshift(savedPage);
+      await saveGitHubFile(DATA_PATH, pages, sha, `Generate ${page_type}: ${pageName.substring(0, 50)}`);
+    } catch (saveErr) {
+      console.error('Failed to save page:', saveErr);
+      // Still return the generated HTML even if save fails
+    }
+
+    // ============================================================
+    // Return result
+    // ============================================================
     res.json({
       html,
       expert_scores: reviewData,
       tokens_used: totalTokens,
       estimated_cost: (totalTokens * 0.000003).toFixed(4),
-      message: `Page generated with score: ${reviewData.average_score}/100`
+      message: `Page generated with score: ${reviewData.average_score}/100`,
+      page: savedPage ? { id: savedPage.id, slug: savedPage.slug, name: savedPage.name } : null
     });
 
   } catch (err) {
