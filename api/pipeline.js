@@ -12,7 +12,7 @@ import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent } fro
 // ============================================================
 // ANTHROPIC API HELPER
 // ============================================================
-async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-5-20250514', maxTokens = 8192) {
+async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-5-20250929', maxTokens = 8192) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
 
@@ -202,7 +202,7 @@ Return a JSON object:
   }
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250514', 4096);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 4096);
   const brandData = parseJSON(text);
   return { data: brandData, tokensUsed };
 }
