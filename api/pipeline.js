@@ -7,6 +7,7 @@ export const config = { maxDuration: 300 };
 import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, getStepLabel, PIPELINE_STEPS } from '../lib/job-manager.js';
 import { scrapeWebsite, extractBrandAssets } from '../lib/website-scraper.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
+import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent } from '../lib/design-system.js';
 
 // ============================================================
 // ANTHROPIC API HELPER
@@ -341,7 +342,7 @@ Return JSON with all copy variations:
   return { data: copyData, tokensUsed };
 }
 
-// STEP 5: DESIGN - Build complete HTML
+// STEP 5: DESIGN - Build complete HTML using Design System templates
 async function runDesign(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
@@ -349,51 +350,106 @@ async function runDesign(job) {
   const copy = job.copy_data || {};
   const pageType = job.page_type;
 
-  const pageTypeInstructions = getPageTypeDesignInstructions(pageType);
+  // Step 1: Get HTML skeleton template from design system
+  const template = getPageTemplate(pageType, brand);
 
-  const systemPrompt = `You are an elite landing page designer who creates stunning, high-converting pages. You combine beautiful visual design with proven conversion principles. Generate complete, production-ready HTML with all CSS inline. The page must be fully self-contained, mobile-responsive, and visually stunning.`;
+  // Step 2: Build component sections (stats, testimonials, CTAs, FAQs)
+  const statsSection = getComponent('stat-bar', { stats: copy.social_proof?.stats });
+  const testimonialsSection = getComponent('testimonial-grid', {
+    testimonials: copy.social_proof?.testimonials?.map(t => ({
+      quote: t.quote, author: t.author, role: t.result || '', stars: 5
+    })),
+    headline: 'What Our Customers Say'
+  });
+  const midCtaSection = getComponent('cta-block', {
+    headline: copy.ctas?.secondary || 'Ready to Get Started?',
+    subheadline: copy.hero?.above_fold_text || '',
+    cta_text: copy.ctas?.primary || 'Get Started',
+    dark: false
+  });
+  const finalCtaSection = getComponent('cta-block', {
+    headline: copy.ctas?.final || 'Don\'t Wait - Start Today',
+    subheadline: '',
+    cta_text: copy.ctas?.primary || 'Get Started Now',
+    dark: true
+  });
+  const faqSection = getComponent('faq-accordion', {
+    items: (copy.body_sections || []).filter(s =>
+      s.section_name?.toLowerCase().includes('faq') || s.section_name?.toLowerCase().includes('question')
+    ).map(s => ({ question: s.headline, answer: s.body_copy })),
+    headline: 'Frequently Asked Questions'
+  });
+  const benefitsSection = getComponent('benefits-list', {
+    benefits: (copy.body_sections || []).filter(s =>
+      s.section_name?.toLowerCase().includes('benefit') || s.section_name?.toLowerCase().includes('feature')
+    ).map(s => ({ title: s.headline, desc: s.body_copy?.substring(0, 200) })),
+    headline: strategy.sections?.find(s => s.section_name?.toLowerCase().includes('benefit'))?.content_brief || 'Why Choose Us'
+  });
 
-  const userPrompt = `Build a complete, production-ready ${pageType} landing page.
+  // Step 3: Ask Claude to populate the template with content (NOT generate structure)
+  const companyName = research.company_name || 'Our Company';
 
-BRAND GUIDE:
-Colors: ${JSON.stringify(brand.colors || {})}
-Typography: ${JSON.stringify(brand.typography || {})}
-Spacing: ${JSON.stringify(brand.spacing || {})}
-Button Style: ${JSON.stringify(brand.button_style || {})}
+  const systemPrompt = `You are an elite landing page content specialist. You will receive an HTML template with {{PLACEHOLDER}} slots. Your job is to fill those slots with compelling content using the copy data provided. Return a JSON object mapping each placeholder name to its HTML content. Only return valid JSON.`;
 
-COPY:
+  const userPrompt = `Fill the content slots in this ${pageType} page template.
+
+TEMPLATE SLOTS TO FILL:
+${template.slots.join(', ')}
+
+COPY DATA:
 ${JSON.stringify(copy, null, 2)}
 
 STRATEGY:
-${JSON.stringify(strategy.sections || [], null, 2)}
+${JSON.stringify(strategy, null, 2)}
 
-${pageTypeInstructions}
+BRAND:
+Company: ${companyName}
+Industry: ${research.industry || ''}
+Tone: ${brand.brand_voice?.tone || job.input_data.tone || 'Professional'}
 
-REQUIREMENTS:
-1. Complete, self-contained HTML with all CSS in a <style> tag
-2. Mobile-responsive (looks great on all devices)
-3. Use the exact brand colors and fonts specified
-4. Include all copy sections from the copy data above
-5. Include social proof elements (stats bars, testimonials)
-6. Multiple CTAs throughout the page
-7. Professional typography with proper hierarchy
-8. Smooth scroll behavior
-9. Include a progress reading bar at top (for advertorials)
-10. Include proper meta tags (og:title, og:description, viewport)
-11. Do NOT include any tracking scripts - those will be injected in the assembly step
-12. All images should use placeholder URLs or gradient backgrounds
-13. Output ONLY the complete HTML - no explanations
+${getPageTypeDesignInstructions(pageType)}
 
-Return the complete HTML document starting with <!DOCTYPE html>.`;
+Return a JSON object with ALL placeholders filled. For body/section placeholders, use <p> tags for paragraphs. For list items, use appropriate HTML. Example:
+{
+  "META_TITLE": "Page Title Here",
+  "META_DESCRIPTION": "Description here",
+  "COMPANY_NAME": "${companyName}",
+  "HEADLINE": "Your Compelling Headline",
+  "SUBHEADLINE": "Supporting text here",
+  "BADGE_TEXT": "SPECIAL REPORT",
+  "NAV_CTA": "Get Started",
+  "CTA_TEXT": "Start Now",
+  "HERO_BODY": "<p>Opening paragraph...</p><p>Second paragraph...</p>",
+  ...etc for ALL slots
+}
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250514', 16384);
+IMPORTANT: Every {{PLACEHOLDER}} in the template must have a corresponding key in your JSON response. Use the copy data to fill each slot with persuasive, on-brand content. For sections not directly covered by copy data, generate appropriate content based on the strategy.`;
 
-  // Extract HTML from response
-  let html = text;
-  const htmlMatch = text.match(/<!DOCTYPE[\s\S]*/i);
-  if (htmlMatch) html = htmlMatch[0];
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 8192);
+  const contentMap = parseJSON(text);
 
-  return { data: { html }, tokensUsed };
+  // Step 4: Populate the template with Claude's content
+  let html = template.html;
+
+  // Add pre-built component sections
+  const componentMap = {
+    STATS_SECTION: statsSection,
+    MID_CTA_SECTION: midCtaSection,
+    FINAL_CTA_SECTION: finalCtaSection,
+    TESTIMONIALS_SECTION: testimonialsSection,
+    FAQ_SECTION: faqSection,
+    BENEFITS_SECTION: benefitsSection,
+    RESULTS_SECTION: statsSection, // Reuse stats for results display
+  };
+
+  // First inject components
+  html = populateTemplate(html, componentMap);
+  // Then inject Claude-generated content
+  html = populateTemplate(html, contentMap);
+  // Fill any remaining placeholders with empty strings
+  html = html.replace(/\{\{[A-Z_]+\}\}/g, '');
+
+  return { data: { html, template_type: pageType, design_system_version: '2.0' }, tokensUsed };
 }
 
 // STEP 6: FACTCHECK - Verify claims
@@ -614,7 +670,40 @@ Design as an interactive savings/ROI calculator:
 - CTA to get full results or personalized plan
 - Social proof and testimonials below calculator
 - Detailed breakdown section
-- FAQ section`
+- FAQ section`,
+
+    'sales-letter': `
+PAGE TYPE: SALES LETTER
+Design as a long-form direct response sales letter:
+- Minimal design focused purely on readability
+- Serif font (Merriweather/Georgia) for body, sans-serif for headings
+- Single column, max 680px width, left-aligned text
+- 60-70 characters per line for optimal reading
+- Section breaks using spacing/lines (no colored boxes)
+- Multiple CTAs placed every 300-400 words of copy
+- Underline emphasis for key phrases (CSS text-decoration, not highlighting)
+- P.S. and P.P.S. sections at the end
+- Signature block with credentials
+- No images except possibly one hero
+- Paper-like color scheme (off-white #fffdf8 background)
+- Guarantee box (green border, light green background)
+- Footer with disclosure text
+- Every paragraph should be short (1-3 sentences max)`,
+
+    'sms-tips': `
+PAGE TYPE: SMS TIPS LEAD MAGNET
+Design as an SMS marketing series landing page:
+- Urgency banner at top (enrollment closing/limited spots)
+- Split-screen hero: text left, phone mockup right
+- Phone mockup shows actual SMS message previews (bubble style)
+- Day-by-day preview cards showing what they'll get (grid of 6-8 days)
+- Benefits list with checkmarks
+- Subscriber count social proof
+- SMS opt-in form (name + phone + email)
+- Testimonials from existing subscribers
+- Compact SMS message formatting (short lines, natural breaks)
+- Mobile-first responsive (phone mockup stacks above text on mobile)
+- Clear compliance text for SMS messaging (message rates, STOP to cancel)`
   };
 
   return instructions[pageType] || instructions.advertorial;

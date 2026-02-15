@@ -1,19 +1,25 @@
-// RunAds - Meta Ad Generator (Vercel Serverless Function)
-// Generates ad copy and image prompts using Claude
+// RunAds - Enhanced Meta Ad Generator (Phase 2)
+// Modes: copy, images, email-sequence, full
+// Integrates 73 psychological triggers + platform formulas
 
 export const config = { maxDuration: 300 };
 
+import {
+  TRIGGERS, STACKING_FORMULAS, PLATFORM_FORMULAS,
+  getTriggersForPageType, getTriggersForAwareness, buildTriggerContext
+} from '../lib/psychological-triggers.js';
+
 const HOOK_FRAMEWORKS = {
-  'problem-agitate-solution': 'Name pain â Amplify emotional cost â Present solution',
-  'curiosity-gap': 'Tease outcome without revealing method â Create information gap',
-  'contrarian': 'Challenge conventional wisdom â Reveal counterintuitive truth',
-  'social-proof': 'Lead with crowd behavior/numbers â Create FOMO through exclusivity',
+  'problem-agitate-solution': 'Name pain → Amplify emotional cost → Present solution',
+  'curiosity-gap': 'Tease outcome without revealing method → Create information gap',
+  'contrarian': 'Challenge conventional wisdom → Reveal counterintuitive truth',
+  'social-proof': 'Lead with crowd behavior/numbers → Create FOMO through exclusivity',
   'direct-benefit': 'State value proposition clearly with specific numbers',
-  'story-hook': 'Open with compelling micro-narrative â Transition to offer',
-  'question-hook': 'Ask provocative question â Guide toward your answer',
-  'statistic-lead': 'Open with surprising data point â Position solution',
+  'story-hook': 'Open with compelling micro-narrative → Transition to offer',
+  'question-hook': 'Ask provocative question → Guide toward your answer',
+  'statistic-lead': 'Open with surprising data point → Position solution',
   'before-after': 'Paint vivid contrast between current pain and desired outcome',
-  'fomo': 'Create urgency through scarcity/exclusivity â Cost of inaction'
+  'fomo': 'Create urgency through scarcity/exclusivity → Cost of inaction'
 };
 
 const AWARENESS_LEVELS = {
@@ -37,6 +43,87 @@ const COGNITIVE_BIASES = {
   'endowment': 'Help them feel ownership before purchase'
 };
 
+// ============================================================
+// TRIGGER SELECTION FOR ADS
+// ============================================================
+function selectTriggersForAd(awarenessLevel = 'problem_aware', platform = 'facebook', count = 4) {
+  const awarenessFiltered = getTriggersForAwareness(awarenessLevel);
+  // Prioritize triggers that match the platform
+  const platformFormula = PLATFORM_FORMULAS[platform.replace(/-/g, '_')] || PLATFORM_FORMULAS['facebook-instagram'] || {};
+  const triggerIds = platformFormula.triggerIds || [];
+
+  // Prefer platform-matched triggers, then fill from awareness-matched
+  const platformMatched = awarenessFiltered.filter(t => triggerIds.includes(t.id));
+  const rest = awarenessFiltered.filter(t => !triggerIds.includes(t.id));
+  const selected = [...platformMatched, ...rest].slice(0, count);
+
+  return selected;
+}
+
+function buildAdTriggerContext(triggers) {
+  if (!triggers.length) return '';
+  return `## PSYCHOLOGICAL TRIGGERS TO APPLY IN AD COPY
+${triggers.map(t => `
+### ${t.name} (ID: ${t.id})
+Psychology: ${t.psychology}
+Strategy: ${t.strategy}
+Example Template: ${t.templates?.[0] || 'N/A'}
+`).join('\n')}
+
+Apply these triggers naturally in the ad copy. The hook should leverage at least 1 trigger. The body should weave in 2-3 more.`;
+}
+
+function getPlatformGuidelines(platform) {
+  const guidelines = {
+    'facebook': {
+      headline_length: '25-40 chars',
+      text_length: '125-250 words primary text',
+      cta_options: ['Learn More', 'Shop Now', 'Sign Up', 'Get Offer', 'Book Now'],
+      emoji_use: 'Sparingly (1-2 max in primary text)',
+      format_notes: 'Short paragraphs. Line breaks for readability. First sentence must stop the scroll.'
+    },
+    'instagram': {
+      headline_length: '20-30 chars',
+      text_length: '100-200 words',
+      cta_options: ['Learn More', 'Shop Now', 'Sign Up'],
+      emoji_use: 'Strategic, trend-aware (2-3 max)',
+      format_notes: 'Visual-first platform. Copy supports the image. Use line breaks generously.'
+    },
+    'linkedin': {
+      headline_length: '30-50 chars',
+      text_length: '150-300 words',
+      cta_options: ['Learn More', 'Apply Now', 'Download', 'Register'],
+      emoji_use: 'Minimal (0-1)',
+      format_notes: 'Professional tone. Personal stories perform well. Data-driven claims.'
+    },
+    'tiktok': {
+      headline_length: '15-25 chars',
+      text_length: '50-150 chars on-screen text',
+      cta_options: ['Shop Now', 'Learn More'],
+      emoji_use: 'On-brand only',
+      format_notes: 'Authenticity over polish. Hook in first 0-3 seconds. Trend-aware language.'
+    },
+    'google': {
+      headline_length: '30 chars per headline (up to 3)',
+      text_length: '90 chars per description (up to 2)',
+      cta_options: ['Learn More', 'Get Quote', 'Shop Now', 'Sign Up', 'Call Now'],
+      emoji_use: 'None',
+      format_notes: 'Keyword-focused. Specific numbers. USP in first headline. CTA in description.'
+    },
+    'email': {
+      headline_length: '50-60 chars subject line',
+      text_length: '300-500 words body',
+      cta_options: ['Learn More', 'Claim Your Spot', 'Get Started', 'Download Now'],
+      emoji_use: 'Optional in subject (1 max)',
+      format_notes: 'Preview text 35-50 chars. Short paragraphs. One clear CTA per email.'
+    }
+  };
+  return guidelines[platform] || guidelines.facebook;
+}
+
+// ============================================================
+// MAIN HANDLER
+// ============================================================
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -48,7 +135,7 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
   const {
-    mode,               // 'copy', 'images', 'full'
+    mode,               // 'copy', 'images', 'email-sequence', 'full'
     client_data,        // Client brand data
     // Copy settings
     ad_type,            // single_image, carousel, video, story
@@ -57,18 +144,33 @@ export default async function handler(req, res) {
     target_audience,
     offer_details,
     num_variations,     // 3, 5, or 10
+    platform,           // facebook, instagram, linkedin, tiktok, google, email
     // Image prompt settings
     awareness_level,
     cognitive_biases,   // Array of bias keys
     ad_styles,          // Array of style names
     aspect_ratio,
     num_prompts,
-    custom_concept
+    custom_concept,
+    // Email sequence settings
+    sequence_length,    // 3, 5, 7, or 10
+    sequence_type,      // 'lead-nurture', 'sales-funnel', 'educational', 'launch', 'abandoned-cart'
+    days_between,       // 1, 2, 3
+    product_info
   } = req.body;
 
   try {
     const results = {};
     let totalTokens = 0;
+
+    // Select psychological triggers for this ad campaign
+    const selectedTriggers = selectTriggersForAd(
+      awareness_level || 'problem_aware',
+      platform || 'facebook',
+      4
+    );
+    const triggerContext = buildAdTriggerContext(selectedTriggers);
+    const platformGuide = getPlatformGuidelines(platform || 'facebook');
 
     // ============================================================
     // GENERATE AD COPY
@@ -78,25 +180,42 @@ export default async function handler(req, res) {
         ? `Use the "${hook_framework}" framework: ${HOOK_FRAMEWORKS[hook_framework]}`
         : 'Choose the most effective hook framework for this audience';
 
+      const awarenessInfo = awareness_level && AWARENESS_LEVELS[awareness_level]
+        ? `Awareness Level: ${awareness_level}\nGuidance: ${AWARENESS_LEVELS[awareness_level]}`
+        : 'Default to problem-aware level';
+
       const copyPrompt = `You are an elite Meta Ads copywriter who has spent $100M+ on Facebook/Instagram ads. Generate ${num_variations || 3} ad copy variations.
 
 ## Client/Brand
 ${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided - use professional defaults'}
 
+## Audience & Awareness
+- Target Audience: ${target_audience || 'Not specified'}
+- ${awarenessInfo}
+
 ## Requirements
 - Ad Type: ${ad_type || 'single_image'}
 - Tone: ${tone || 'conversational'}
 - Hook Framework: ${hookInfo}
-- Target Audience: ${target_audience || 'Not specified'}
 - Offer: ${offer_details || 'Not specified'}
+
+## Platform: ${(platform || 'facebook').toUpperCase()}
+- Headline Length: ${platformGuide.headline_length}
+- Text Length: ${platformGuide.text_length}
+- CTA Options: ${platformGuide.cta_options.join(', ')}
+- Emoji Usage: ${platformGuide.emoji_use}
+- Format: ${platformGuide.format_notes}
+
+${triggerContext}
 
 ## Output Format
 For each variation, provide:
 1. **Hook** (first line - must stop the scroll)
-2. **Primary Text** (full ad body, 125-250 words)
-3. **Headline** (under 40 chars, for the headline field)
-4. **Description** (under 30 chars, for the description field)
+2. **Primary Text** (full ad body)
+3. **Headline** (short, punchy)
+4. **Description** (supporting line)
 5. **CTA Text** (button text)
+6. **Triggers Used** (which psychological triggers from above were applied)
 
 Apply these direct response principles:
 - Open with the strongest possible hook
@@ -104,7 +223,7 @@ Apply these direct response principles:
 - Include specific numbers and results where possible
 - Create urgency without being sleazy
 - End with a clear, compelling CTA
-- Use pattern interrupts (line breaks, emojis sparingly, formatting)
+- Use pattern interrupts (line breaks, formatting)
 
 Respond in this JSON format:
 {
@@ -114,7 +233,9 @@ Respond in this JSON format:
       "primary_text": "...",
       "headline": "...",
       "description": "...",
-      "cta": "..."
+      "cta": "...",
+      "triggers_used": ["trigger name", ...],
+      "hook_framework": "which framework was used"
     }
   ]
 }`;
@@ -186,10 +307,95 @@ Respond in JSON:
       }
     }
 
+    // ============================================================
+    // GENERATE EMAIL SEQUENCE
+    // ============================================================
+    if (mode === 'email-sequence' || mode === 'full') {
+      const seqLength = sequence_length || 5;
+      const seqType = sequence_type || 'lead-nurture';
+      const daysBetween = days_between || 2;
+
+      // Select triggers that progress through awareness levels for the sequence
+      const awarenessProgression = ['unaware', 'problem_aware', 'solution_aware', 'product_aware', 'most_aware'];
+      const triggersPerEmail = [];
+      for (let i = 0; i < seqLength; i++) {
+        const level = awarenessProgression[Math.min(i, awarenessProgression.length - 1)];
+        const emailTriggers = selectTriggersForAd(level, 'email', 2);
+        triggersPerEmail.push({ level, triggers: emailTriggers.map(t => t.name) });
+      }
+
+      const emailPrompt = `You are a world-class email copywriter specializing in ${seqType} sequences. Generate a ${seqLength}-email sequence.
+
+## Client/Brand
+${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided'}
+
+## Sequence Configuration
+- Type: ${seqType}
+- Length: ${seqLength} emails
+- Days Between: ${daysBetween}
+- Target Audience: ${target_audience || 'Not specified'}
+- Offer: ${offer_details || 'Not specified'}
+- Tone: ${tone || 'conversational'}
+${product_info ? `- Product Info: ${product_info}` : ''}
+
+## Awareness Level Progression (per email)
+${triggersPerEmail.map((e, i) => `Email ${i + 1}: ${e.level} → Triggers: ${e.triggers.join(', ')}`).join('\n')}
+
+## Sequence Type Guidelines
+${seqType === 'lead-nurture' ? 'Build trust and educate. Each email delivers value. Soft sell in emails 3+.' : ''}
+${seqType === 'sales-funnel' ? 'Progressive urgency. Problem → Solution → Proof → Offer → Deadline.' : ''}
+${seqType === 'educational' ? 'Teach while positioning product. Each email teaches one concept that links to product benefits.' : ''}
+${seqType === 'launch' ? 'Build anticipation. Teaser → Value → Social proof → Cart open → Last chance.' : ''}
+${seqType === 'abandoned-cart' ? 'Reminder → Objection handling → Urgency → Final offer with bonus/discount.' : ''}
+
+## Output Format
+Return JSON:
+{
+  "sequence": [
+    {
+      "email_number": 1,
+      "subject_line": "string (50-60 chars)",
+      "preview_text": "string (35-50 chars)",
+      "body": "string (300-500 words, plain text with line breaks)",
+      "cta_text": "string",
+      "cta_url_anchor": "string (e.g., 'claim-offer')",
+      "send_day": 0,
+      "awareness_level": "string",
+      "triggers_used": ["trigger names"]
+    }
+  ],
+  "strategy": "string (overall sequence strategy explanation)",
+  "expected_metrics": {
+    "estimated_open_rate": "string percentage",
+    "estimated_click_rate": "string percentage",
+    "optimal_send_time": "string (best time of day)"
+  }
+}`;
+
+      const emailResponse = await callClaude(apiKey, emailPrompt);
+      totalTokens += (emailResponse.usage?.input_tokens || 0) + (emailResponse.usage?.output_tokens || 0);
+
+      try {
+        const text = emailResponse.content[0].text;
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        results.email_sequence = jsonMatch ? JSON.parse(jsonMatch[0]) : { sequence: [] };
+      } catch {
+        results.email_sequence = { sequence: [], raw: emailResponse.content[0].text };
+      }
+    }
+
+    // ============================================================
+    // RESPONSE
+    // ============================================================
     res.json({
       ...results,
+      triggers_used: selectedTriggers.map(t => ({ id: t.id, name: t.name, category: t.category })),
+      platform_optimization: {
+        platform: platform || 'facebook',
+        guidelines: platformGuide
+      },
       tokens_used: totalTokens,
-      estimated_cost: (totalTokens * 0.000003).toFixed(4)
+      estimated_cost: (totalTokens / 1000000 * 3).toFixed(4)
     });
 
   } catch (err) {

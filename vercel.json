@@ -12,6 +12,10 @@
       "destination": "/api/pipeline"
     },
     {
+      "source": "/api/variants/:path*",
+      "destination": "/api/variants"
+    },
+    {
       "source": "/api/pages/:path*",
       "destination": "/api/pages"
     },

@@ -910,6 +910,16 @@ RunAds Team<br>Administrator
 <div class="card-option-title">Calculator</div>
 <div class="card-option-desc">Interactive calculator</div>
 </div>
+<div class="card-option" onclick="selectPageType(this, 'sales-letter')">
+<div class="card-option-icon">💌</div>
+<div class="card-option-title">Sales Letter</div>
+<div class="card-option-desc">Direct response letter</div>
+</div>
+<div class="card-option" onclick="selectPageType(this, 'sms-tips')">
+<div class="card-option-icon">📱</div>
+<div class="card-option-title">SMS Tips</div>
+<div class="card-option-desc">SMS lead magnet</div>
+</div>
 </div>
 </div>
 <div class="form-group">
@@ -1307,6 +1317,7 @@ row.innerHTML = `
 <div class="action-buttons">
 <button class="action-button" title="Visual Edit" onclick="editPage('${page.id}')">🎨</button>
 <button class="action-button" title="Analytics" onclick="viewPageAnalytics('${page.id}')">📊</button>
+<button class="action-button" title="A/B Variants" onclick="generateVariants('${page.id}')">🔀</button>
 <button class="action-button" title="Edit HTML" onclick="openHtmlEditor('${page.id}')">✏️</button>
 <button class="action-button" title="Delete" onclick="deletePage('${page.id}')">🗑️</button>
 </div>
@@ -1659,10 +1670,15 @@ ${app.clients.map(client => `
 <div class="card-option-title">Image Prompts</div>
 <div class="card-option-desc">Generate image ideas</div>
 </div>
-<div class="card-option" onclick="selectAdMode(this, 'campaign')">
+<div class="card-option" onclick="selectAdMode(this, 'email-sequence')">
+<div style="font-size:32px;margin-bottom:12px;">📧</div>
+<div class="card-option-title">Email Sequence</div>
+<div class="card-option-desc">Nurture email series</div>
+</div>
+<div class="card-option" onclick="selectAdMode(this, 'full')">
 <div style="font-size:32px;margin-bottom:12px;">📊</div>
-<div class="card-option-title">Full Campaign</div>
-<div class="card-option-desc">Copy + images</div>
+<div class="card-option-title">Full Package</div>
+<div class="card-option-desc">Copy + images + emails</div>
 </div>
 </div>
 <div style="margin-top:32px;display:flex;gap:12px;">
@@ -1672,7 +1688,38 @@ ${app.clients.map(client => `
 </div>
 <div id="adStep3" class="ad-step hidden">
 <h2 style="margin-bottom:24px;font-size:20px;font-weight:700;">Configure Settings</h2>
+<!-- Common settings -->
+<div class="form-group">
+<label>Platform</label>
+<select id="adPlatform">
+<option value="facebook">Facebook</option>
+<option value="instagram">Instagram</option>
+<option value="linkedin">LinkedIn</option>
+<option value="tiktok">TikTok</option>
+<option value="google">Google Ads</option>
+</select>
+</div>
+<div class="form-group">
+<label>Awareness Level</label>
+<select id="adAwareness">
+<option value="problem_aware">Problem Aware</option>
+<option value="unaware">Unaware (Cold)</option>
+<option value="solution_aware">Solution Aware</option>
+<option value="product_aware">Product Aware</option>
+<option value="most_aware">Most Aware (Hot)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Target Audience</label>
+<textarea id="adAudience" placeholder="Describe your target audience..."></textarea>
+</div>
+<div class="form-group">
+<label>Offer Details</label>
+<textarea id="adOffer" placeholder="What are you offering?"></textarea>
+</div>
+<!-- Copy-specific settings -->
 <div id="adCopySettings">
+<div class="two-column">
 <div class="form-group">
 <label>Ad Type</label>
 <select id="adType">
@@ -1685,44 +1732,70 @@ ${app.clients.map(client => `
 <div class="form-group">
 <label>Tone</label>
 <select id="adTone">
-<option value="">Select tone...</option>
+<option value="conversational">Conversational</option>
 <option value="professional">Professional</option>
-<option value="friendly">Friendly</option>
 <option value="urgent">Urgent</option>
 <option value="playful">Playful</option>
-<option value="expert">Expert</option>
+<option value="authoritative">Authoritative</option>
 </select>
 </div>
+</div>
+<div class="two-column">
 <div class="form-group">
 <label>Hook Framework</label>
 <select id="adHook">
-<option value="">Select framework...</option>
-<option value="pas">PAS (Problem-Agitate-Solve)</option>
-<option value="curiosity">Curiosity Gap</option>
+<option value="">Auto-select best...</option>
+<option value="problem-agitate-solution">PAS (Problem-Agitate-Solve)</option>
+<option value="curiosity-gap">Curiosity Gap</option>
 <option value="contrarian">Contrarian</option>
-<option value="social">Social Proof</option>
-<option value="benefit">Direct Benefit</option>
-<option value="story">Story Hook</option>
-<option value="question">Question Hook</option>
-<option value="statistic">Statistic Lead</option>
+<option value="social-proof">Social Proof</option>
+<option value="direct-benefit">Direct Benefit</option>
+<option value="story-hook">Story Hook</option>
+<option value="question-hook">Question Hook</option>
+<option value="statistic-lead">Statistic Lead</option>
 <option value="before-after">Before/After</option>
 <option value="fomo">FOMO</option>
 </select>
 </div>
 <div class="form-group">
-<label>Target Audience</label>
-<textarea id="adAudience" placeholder="Describe your target audience..."></textarea>
-</div>
-<div class="form-group">
-<label>Offer Details</label>
-<textarea id="adOffer" placeholder="What are you offering?"></textarea>
-</div>
-<div class="form-group">
-<label>Number of Variations</label>
+<label>Variations</label>
 <select id="adVariations">
 <option value="3">3 variations</option>
 <option value="5">5 variations</option>
 <option value="10">10 variations</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Email sequence settings -->
+<div id="adEmailSettings" style="display:none;">
+<div class="two-column">
+<div class="form-group">
+<label>Sequence Type</label>
+<select id="emailSeqType">
+<option value="lead-nurture">Lead Nurture</option>
+<option value="sales-funnel">Sales Funnel</option>
+<option value="educational">Educational</option>
+<option value="launch">Product Launch</option>
+<option value="abandoned-cart">Abandoned Cart</option>
+</select>
+</div>
+<div class="form-group">
+<label>Number of Emails</label>
+<select id="emailSeqLength">
+<option value="3">3 emails</option>
+<option value="5" selected>5 emails</option>
+<option value="7">7 emails</option>
+<option value="10">10 emails</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Days Between Emails</label>
+<select id="emailDaysBetween">
+<option value="1">Every day</option>
+<option value="2" selected>Every 2 days</option>
+<option value="3">Every 3 days</option>
 </select>
 </div>
 </div>
@@ -1758,6 +1831,11 @@ document.querySelectorAll('#adStep2 .card-option').forEach(el => el.classList.re
 element.classList.add('selected');
 document.getElementById('adModeNextBtn').disabled = false;
 app.selectedAdMode = mode;
+// Show/hide mode-specific settings
+const copySettings = document.getElementById('adCopySettings');
+const emailSettings = document.getElementById('adEmailSettings');
+if (copySettings) copySettings.style.display = (mode === 'copy' || mode === 'images' || mode === 'full') ? 'block' : 'none';
+if (emailSettings) emailSettings.style.display = (mode === 'email-sequence' || mode === 'full') ? 'block' : 'none';
 }
 function moveAdStep(stepNumber){
 for (let i = 1;i <= 4;i++){
@@ -1781,16 +1859,22 @@ stepIndicator.classList.remove('active');
 }
 function generateAds(){
 const resultDiv = document.getElementById('adResults');
-resultDiv.innerHTML = '<div class="loading" style="margin:32px auto;"></div>';
-const payload ={
-clientId:app.currentClient,
-mode:app.selectedAdMode,
-type:document.getElementById('adType')?.value,
-tone:document.getElementById('adTone')?.value,
-hook:document.getElementById('adHook')?.value,
-audience:document.getElementById('adAudience')?.value,
-offer:document.getElementById('adOffer')?.value,
-variations:document.getElementById('adVariations')?.value
+resultDiv.innerHTML = '<div class="loading" style="margin:32px auto;"></div><div style="text-align:center;color:#6b7280;margin-top:12px;">Generating with psychological triggers...</div>';
+const mode = app.selectedAdMode === 'campaign' ? 'full' : app.selectedAdMode;
+const payload = {
+  mode: mode,
+  client_data: app.clients.find(c => c.id === app.currentClient) || {},
+  platform: document.getElementById('adPlatform')?.value || 'facebook',
+  awareness_level: document.getElementById('adAwareness')?.value || 'problem_aware',
+  target_audience: document.getElementById('adAudience')?.value,
+  offer_details: document.getElementById('adOffer')?.value,
+  ad_type: document.getElementById('adType')?.value,
+  tone: document.getElementById('adTone')?.value,
+  hook_framework: document.getElementById('adHook')?.value,
+  num_variations: parseInt(document.getElementById('adVariations')?.value || '3'),
+  sequence_type: document.getElementById('emailSeqType')?.value,
+  sequence_length: parseInt(document.getElementById('emailSeqLength')?.value || '5'),
+  days_between: parseInt(document.getElementById('emailDaysBetween')?.value || '2')
 };
 fetch('/api/ads',{
 method:'POST',
@@ -1800,29 +1884,89 @@ body:JSON.stringify(payload)
 .then(res => res.json())
 .then(data =>{
 resultDiv.innerHTML = '';
-if (data.ads && data.ads.length > 0){
-data.ads.forEach((ad, index) =>{
-const adCard = document.createElement('div');
-adCard.style.cssText = 'background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;display:flex;justify-content:space-between;align-items:start;';
-adCard.innerHTML = `
-<div style="flex:1;">
-<div style="font-weight:600;margin-bottom:8px;">${ad.headline || ad}</div>
-<div style="font-size:13px;color:#6b7280;">${ad.description || ''}</div>
-</div>
-<div style="display:flex;gap:8px;">
-<button class="btn btn-icon" title="Copy" onclick="copyToClipboard('${(ad.headline || ad).replace(/'/g, "\\'")}')">📋</button>
-<button class="btn btn-icon" title="Export" onclick="exportAd('${index}')">⬇️</button>
-</div>
-`;
-resultDiv.appendChild(adCard);
-});
-}else{
-resultDiv.innerHTML = '<div style="color:#6b7280;text-align:center;padding:32px;">No ads generated. Try again.</div>';
+// Show triggers used
+if (data.triggers_used && data.triggers_used.length > 0) {
+  const triggerBadges = data.triggers_used.map(t =>
+    `<span style="display:inline-block;padding:4px 10px;background:#f3e8ff;color:#7c3aed;border-radius:12px;font-size:12px;font-weight:600;margin:2px;">${t.name}</span>`
+  ).join('');
+  resultDiv.innerHTML += `<div style="margin-bottom:16px;"><span style="font-size:13px;color:#6b7280;margin-right:8px;">Triggers Applied:</span>${triggerBadges}</div>`;
+}
+// Show platform info
+if (data.platform_optimization) {
+  resultDiv.innerHTML += `<div style="margin-bottom:16px;padding:8px 12px;background:#f0f9ff;border-radius:6px;font-size:12px;color:#0369a1;">Platform: ${data.platform_optimization.platform} | Cost: $${data.estimated_cost || '0.00'} | Tokens: ${data.tokens_used || 0}</div>`;
+}
+// Render ad copy variations
+if (data.ad_copy?.variations?.length > 0) {
+  resultDiv.innerHTML += '<h3 style="font-size:16px;font-weight:700;margin:16px 0 12px;">Ad Copy Variations</h3>';
+  data.ad_copy.variations.forEach((ad, i) => {
+    resultDiv.innerHTML += `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-weight:700;font-size:14px;">Variation ${i+1}</span>
+        <div style="display:flex;gap:6px;">
+          ${(ad.triggers_used||[]).map(t => `<span style="padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:8px;font-size:11px;">${t}</span>`).join('')}
+        </div>
+      </div>
+      <div style="background:#fefce8;padding:10px 14px;border-radius:6px;font-weight:600;margin-bottom:10px;font-size:15px;">${ad.hook||''}</div>
+      <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;margin-bottom:12px;color:#374151;">${ad.primary_text||''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding-top:12px;border-top:1px solid #f3f4f6;">
+        <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Headline</div><div style="font-weight:600;font-size:13px;">${ad.headline||''}</div></div>
+        <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Description</div><div style="font-size:13px;">${ad.description||''}</div></div>
+        <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;">CTA</div><div style="font-weight:600;color:#2563eb;font-size:13px;">${ad.cta||''}</div></div>
+      </div>
+    </div>`;
+  });
+}
+// Render image prompts
+if (data.image_prompts?.prompts?.length > 0) {
+  resultDiv.innerHTML += '<h3 style="font-size:16px;font-weight:700;margin:16px 0 12px;">Image Prompts</h3>';
+  data.image_prompts.prompts.forEach((p, i) => {
+    resultDiv.innerHTML += `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:12px;">
+      <div style="font-weight:700;margin-bottom:8px;">${p.concept||''}</div>
+      <div style="font-size:13px;color:#374151;background:#f9fafb;padding:12px;border-radius:6px;margin-bottom:8px;font-family:monospace;">${p.prompt||''}</div>
+      <div style="font-size:12px;color:#6b7280;font-style:italic;">${p.rationale||''}</div>
+    </div>`;
+  });
+}
+// Render email sequence
+if (data.email_sequence?.sequence?.length > 0) {
+  resultDiv.innerHTML += '<h3 style="font-size:16px;font-weight:700;margin:16px 0 12px;">Email Sequence</h3>';
+  if (data.email_sequence.strategy) {
+    resultDiv.innerHTML += `<div style="padding:12px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#166534;margin-bottom:12px;">${data.email_sequence.strategy}</div>`;
+  }
+  data.email_sequence.sequence.forEach(email => {
+    resultDiv.innerHTML += `
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;margin-bottom:12px;position:relative;">
+      <div style="position:absolute;top:12px;right:16px;padding:4px 10px;background:#dbeafe;color:#1e40af;border-radius:12px;font-size:11px;font-weight:600;">Day ${email.send_day}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">Email ${email.email_number} · ${email.awareness_level || ''}</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">${email.subject_line||''}</div>
+      <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;">${email.preview_text||''}</div>
+      <div style="white-space:pre-wrap;font-size:13px;line-height:1.6;color:#374151;max-height:200px;overflow-y:auto;padding:12px;background:#f9fafb;border-radius:6px;">${email.body||''}</div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:600;color:#2563eb;font-size:13px;">${email.cta_text||''}</span>
+        <div style="display:flex;gap:4px;">${(email.triggers_used||[]).map(t => `<span style="padding:2px 6px;background:#fef3c7;color:#92400e;border-radius:6px;font-size:10px;">${t}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  });
+  if (data.email_sequence.expected_metrics) {
+    const m = data.email_sequence.expected_metrics;
+    resultDiv.innerHTML += `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;">
+      <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:8px;"><div style="font-size:1.5rem;font-weight:800;color:#10b981;">${m.estimated_open_rate||'--'}</div><div style="font-size:12px;color:#6b7280;">Est. Open Rate</div></div>
+      <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:8px;"><div style="font-size:1.5rem;font-weight:800;color:#2563eb;">${m.estimated_click_rate||'--'}</div><div style="font-size:12px;color:#6b7280;">Est. Click Rate</div></div>
+      <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:8px;"><div style="font-size:1.5rem;font-weight:800;color:#7c3aed;">${m.optimal_send_time||'--'}</div><div style="font-size:12px;color:#6b7280;">Best Send Time</div></div>
+    </div>`;
+  }
+}
+// No results at all
+if (!data.ad_copy?.variations?.length && !data.image_prompts?.prompts?.length && !data.email_sequence?.sequence?.length) {
+  resultDiv.innerHTML += '<div style="color:#6b7280;text-align:center;padding:32px;">No results generated. Try again.</div>';
 }
 })
 .catch(err =>{
 console.error('Failed to generate ads:', err);
-resultDiv.innerHTML = '<div style="color:#ef4444;text-align:center;padding:32px;">Failed to generate ads</div>';
+resultDiv.innerHTML = '<div style="color:#ef4444;text-align:center;padding:32px;">Failed to generate: ' + err.message + '</div>';
 });
 }
 function renderReports(container){
@@ -1981,6 +2125,26 @@ body:JSON.stringify({html})
 deployPage(pageId);
 })
 .catch(err => console.error('Failed to save page:', err));
+}
+function generateVariants(pageId){
+const page = app.pages.find(p => p.id === pageId);
+if (!page) return alert('Page not found');
+if (!confirm(`Generate A/B variants for "${page.name}"?\n\nThis will create 3 variants:\n- Alternate Layout\n- Dark Theme\n- Urgency Focused`)) return;
+fetch(`/api/variants/${pageId}/generate`, {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({ variant_types: ['alternate-layout', 'dark-theme', 'urgency-focused'] })
+})
+.then(res => res.json())
+.then(data => {
+  if (data.success) {
+    alert(`Created ${data.variants_created} variants for "${page.name}"!`);
+    loadPages();
+  } else {
+    alert('Failed: ' + (data.error || 'Unknown error'));
+  }
+})
+.catch(err => alert('Error: ' + err.message));
 }
 function viewPageAnalytics(pageId){
 app.currentPage = app.pages.find(p => p.id === pageId);
