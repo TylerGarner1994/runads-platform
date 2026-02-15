@@ -40,6 +40,10 @@
       "destination": "/api/track"
     },
     {
+      "source": "/api/chat/:path*",
+      "destination": "/api/chat"
+    },
+    {
       "source": "/p/:slug",
       "destination": "/api/page-view"
     },
