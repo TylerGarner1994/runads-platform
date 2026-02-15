@@ -401,6 +401,18 @@ border-top-color:#2563eb;
 border-radius:50%;
 animation:spin 0.8s linear infinite;
 }
+.pipeline-step{
+display:flex;
+align-items:center;
+gap:12px;
+padding:8px 12px;
+opacity:0.5;
+transition:all 0.3s ease;
+}
+.pipeline-step .step-icon{font-size:18px;}
+.pipeline-step .step-label{flex:1;font-size:14px;font-weight:500;}
+.pipeline-step .step-status{font-size:13px;color:#666;min-width:80px;text-align:right;
+}
 @keyframes spin{
 to{transform:rotate(360deg);}
 }
@@ -928,8 +940,25 @@ RunAds Team<br>Administrator
 </div>
 </div>
 </div>
+<div id="pipelineProgress" style="display:none;padding:20px;">
+<h3 style="margin-bottom:16px;font-size:16px;font-weight:600;">7-Step AI Generation Pipeline</h3>
+<div id="pipelineSteps" style="display:flex;flex-direction:column;gap:8px;">
+<div class="pipeline-step" data-step="research"><span class="step-icon">🔍</span><span class="step-label">Deep Research</span><span class="step-status">Waiting</span></div>
+<div class="pipeline-step" data-step="brand"><span class="step-icon">🎨</span><span class="step-label">Brand Extraction</span><span class="step-status">Waiting</span></div>
+<div class="pipeline-step" data-step="strategy"><span class="step-icon">🧠</span><span class="step-label">Page Strategy</span><span class="step-status">Waiting</span></div>
+<div class="pipeline-step" data-step="copy"><span class="step-icon">✍️</span><span class="step-label">Copy Generation</span><span class="step-status">Waiting</span></div>
+<div class="pipeline-step" data-step="design"><span class="step-icon">🎯</span><span class="step-label">Design Generation</span><span class="step-status">Waiting</span></div>
+<div class="pipeline-step" data-step="factcheck"><span class="step-icon">✅</span><span class="step-label">Fact Checking</span><span class="step-status">Waiting</span></div>
+<div class="pipeline-step" data-step="assembly"><span class="step-icon">🚀</span><span class="step-label">Final Assembly</span><span class="step-status">Waiting</span></div>
+</div>
+<div id="pipelineProgressBar" style="margin-top:16px;background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">
+<div id="pipelineProgressFill" style="width:0%;height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:8px;transition:width 0.5s ease;"></div>
+</div>
+<div id="pipelineStatus" style="margin-top:8px;font-size:13px;color:#666;"></div>
+<div id="pipelineCost" style="margin-top:4px;font-size:12px;color:#999;"></div>
+</div>
 <div class="modal-footer">
-<button class="btn btn-secondary" onclick="closeModal('generatePageModal')">Cancel</button>
+<button class="btn btn-secondary" id="generateCancelBtn" onclick="closeModal('generatePageModal')">Cancel</button>
 <button class="btn btn-primary" id="generatePageBtn" onclick="generatePage()">
 <span>Generate Page</span>
 </button>
@@ -2045,6 +2074,11 @@ document.querySelectorAll('.card-option').forEach(el => el.classList.remove('sel
 element.classList.add('selected');
 app.selectedPageType = type;
 }
+// 7-Step Pipeline Generation
+const PIPELINE_STEPS = ['research', 'brand', 'strategy', 'copy', 'design', 'factcheck', 'assembly'];
+let currentJobId = null;
+let pipelineRunning = false;
+
 function generatePage(){
 if (!app.selectedPageType){
 alert('Please select a page type');
@@ -2052,33 +2086,132 @@ return;
 }
 const btn = document.getElementById('generatePageBtn');
 btn.disabled = true;
-btn.innerHTML = '<span class="loading"></span> Generating...';
-const payload ={
-type:app.selectedPageType,
-url:document.getElementById('generatePageUrl').value,
-audience:document.getElementById('generatePageAudience').value,
-tone:document.getElementById('generatePageTone').value,
-clientId:document.getElementById('generatePageClient').value || null
+btn.style.display = 'none';
+document.getElementById('pipelineProgress').style.display = 'block';
+
+const payload = {
+pageType: app.selectedPageType,
+url: document.getElementById('generatePageUrl').value,
+audience: document.getElementById('generatePageAudience').value,
+tone: document.getElementById('generatePageTone').value,
+clientId: document.getElementById('generatePageClient').value || null
 };
-fetch('/api/generate',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(payload)
+
+// Reset pipeline UI
+resetPipelineUI();
+pipelineRunning = true;
+
+// Start the pipeline
+fetch('/api/pipeline/start', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
 })
 .then(res => res.json())
-.then(data =>{
-btn.disabled = false;
-btn.innerHTML = 'Generate Page';
-closeModal('generatePageModal');
-loadPages();
-alert('Page generated successfully!');
+.then(data => {
+if (!data.success || !data.jobId) {
+throw new Error(data.error || 'Failed to start pipeline');
+}
+currentJobId = data.jobId;
+// Run steps sequentially
+runPipelineSteps(data.jobId, payload);
 })
-.catch(err =>{
+.catch(err => {
+console.error('Pipeline start failed:', err);
+pipelineRunning = false;
 btn.disabled = false;
-btn.innerHTML = 'Generate Page';
-console.error('Failed to generate page:', err);
-alert('Failed to generate page');
+btn.style.display = '';
+document.getElementById('pipelineProgress').style.display = 'none';
+alert('Failed to start generation: ' + err.message);
 });
+}
+
+async function runPipelineSteps(jobId, payload) {
+let totalTokens = 0;
+for (let i = 0; i < PIPELINE_STEPS.length; i++) {
+if (!pipelineRunning) return;
+const step = PIPELINE_STEPS[i];
+updateStepUI(step, 'running');
+updatePipelineProgress((i / PIPELINE_STEPS.length) * 100, `Running: ${getStepLabel(step)}...`);
+
+try {
+const resp = await fetch(`/api/pipeline/${jobId}/step/${step}`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ url: payload.url, productName: payload.productName })
+});
+const result = await resp.json();
+if (!result.success) throw new Error(result.error || `Step ${step} failed`);
+totalTokens += (result.tokensUsed || 0);
+updateStepUI(step, 'complete');
+updatePipelineProgress(((i + 1) / PIPELINE_STEPS.length) * 100, `Completed: ${getStepLabel(step)}`);
+document.getElementById('pipelineCost').textContent = `Tokens: ${totalTokens.toLocaleString()} | Est. cost: $${((totalTokens / 1000000) * 9).toFixed(4)}`;
+
+// If assembly is done, show success
+if (step === 'assembly' && result.data) {
+pipelineComplete(result.data);
+}
+} catch (err) {
+console.error(`Step ${step} failed:`, err);
+updateStepUI(step, 'failed');
+updatePipelineProgress(0, `Failed at: ${getStepLabel(step)} - ${err.message}`);
+pipelineRunning = false;
+document.getElementById('generatePageBtn').disabled = false;
+document.getElementById('generatePageBtn').style.display = '';
+document.getElementById('generatePageBtn').innerHTML = '<span>Retry</span>';
+return;
+}
+}
+}
+
+function pipelineComplete(assemblyData) {
+pipelineRunning = false;
+updatePipelineProgress(100, 'Generation complete!');
+document.getElementById('pipelineStatus').innerHTML = `<strong style="color:#16a34a;">Page generated successfully!</strong>`;
+loadPages();
+loadStats();
+setTimeout(() => {
+closeModal('generatePageModal');
+document.getElementById('generatePageBtn').disabled = false;
+document.getElementById('generatePageBtn').style.display = '';
+document.getElementById('generatePageBtn').innerHTML = '<span>Generate Page</span>';
+document.getElementById('pipelineProgress').style.display = 'none';
+resetPipelineUI();
+}, 2000);
+}
+
+function resetPipelineUI() {
+PIPELINE_STEPS.forEach(step => updateStepUI(step, 'waiting'));
+document.getElementById('pipelineProgressFill').style.width = '0%';
+document.getElementById('pipelineStatus').textContent = '';
+document.getElementById('pipelineCost').textContent = '';
+}
+
+function updateStepUI(step, status) {
+const el = document.querySelector(`.pipeline-step[data-step="${step}"]`);
+if (!el) return;
+const statusEl = el.querySelector('.step-status');
+el.style.opacity = status === 'waiting' ? '0.5' : '1';
+el.style.background = status === 'running' ? '#eff6ff' : status === 'complete' ? '#f0fdf4' : status === 'failed' ? '#fef2f2' : 'transparent';
+el.style.borderRadius = '8px';
+el.style.padding = '8px 12px';
+if (status === 'waiting') statusEl.textContent = 'Waiting';
+else if (status === 'running') { statusEl.innerHTML = '<span class="loading" style="width:14px;height:14px;"></span> Running'; statusEl.style.color = '#2563eb'; }
+else if (status === 'complete') { statusEl.textContent = '✓ Done'; statusEl.style.color = '#16a34a'; }
+else if (status === 'failed') { statusEl.textContent = '✗ Failed'; statusEl.style.color = '#dc2626'; }
+}
+
+function updatePipelineProgress(percent, statusText) {
+document.getElementById('pipelineProgressFill').style.width = percent + '%';
+if (statusText) document.getElementById('pipelineStatus').textContent = statusText;
+}
+
+function getStepLabel(step) {
+const labels = {
+research: 'Deep Research', brand: 'Brand Extraction', strategy: 'Page Strategy',
+copy: 'Copy Generation', design: 'Design Generation', factcheck: 'Fact Checking', assembly: 'Final Assembly'
+};
+return labels[step] || step;
 }
 function importHtml(){
 const pageName = document.getElementById('importPageName').value;

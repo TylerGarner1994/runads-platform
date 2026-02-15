@@ -8,6 +8,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/pipeline/:path*",
+      "destination": "/api/pipeline"
+    },
+    {
       "source": "/api/pages/:path*",
       "destination": "/api/pages"
     },
