@@ -8,6 +8,7 @@ import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, g
 import { scrapeWebsite, extractBrandAssets } from '../lib/website-scraper.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent } from '../lib/design-system.js';
+import { savePage as savePageToStorage } from '../lib/storage.js';
 
 // ============================================================
 // ANTHROPIC API HELPER
@@ -530,14 +531,11 @@ async function runAssembly(job) {
     factcheck_score: factcheck.overall_score || null
   };
 
-  // Save to GitHub pages.json
+  // Save page to storage (Postgres-first with GitHub fallback)
   try {
-    const { data: pages, sha } = await getGitHubFile('data/pages.json');
-    const pageList = pages || [];
-    pageList.push(page);
-    await saveGitHubFile('data/pages.json', pageList, sha, `Add page: ${pageName}`);
+    await savePageToStorage(page);
   } catch (e) {
-    console.error('Failed to save page to GitHub:', e.message);
+    console.error('Failed to save page:', e.message);
   }
 
   return {

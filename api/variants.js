@@ -4,37 +4,7 @@
 export const config = { maxDuration: 300 };
 
 import { getPageTemplate, generateBrandCSS, populateTemplate } from '../lib/design-system.js';
-
-const GITHUB_API = 'https://api.github.com';
-
-async function getGitHubFile(path) {
-  const owner = process.env.GITHUB_OWNER || 'TylerGarner1994';
-  const repo = process.env.GITHUB_REPO || 'runads-platform';
-  const token = process.env.GITHUB_TOKEN;
-  const resp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
-    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
-  });
-  if (!resp.ok) return { data: null, sha: null };
-  const file = await resp.json();
-  const content = Buffer.from(file.content, 'base64').toString('utf8');
-  return { data: JSON.parse(content), sha: file.sha };
-}
-
-async function saveGitHubFile(path, data, sha, message) {
-  const owner = process.env.GITHUB_OWNER || 'TylerGarner1994';
-  const repo = process.env.GITHUB_REPO || 'runads-platform';
-  const token = process.env.GITHUB_TOKEN;
-  const body = {
-    message: message || `Update ${path}`,
-    content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64')
-  };
-  if (sha) body.sha = sha;
-  await fetch(`${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`, {
-    method: 'PUT',
-    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-}
+import { getPage, updatePage } from '../lib/storage.js';
 
 async function callClaude(systemPrompt, userPrompt) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -162,14 +132,10 @@ export default async function handler(req, res) {
 async function handleGenerate(pageId, req, res) {
   const { variant_types } = req.body || {};
 
-  // Load the page from pages.json
-  const { data: pages, sha } = await getGitHubFile('data/pages.json');
-  if (!pages) return res.status(500).json({ error: 'Could not load pages' });
+  // Load the page from storage
+  const page = await getPage(pageId);
+  if (!page) return res.status(404).json({ error: 'Page not found' });
 
-  const pageIndex = pages.findIndex(p => p.id === pageId);
-  if (pageIndex === -1) return res.status(404).json({ error: 'Page not found' });
-
-  const page = pages[pageIndex];
   const originalHtml = page.html_content;
   const brand = {}; // Basic brand from page data
 
@@ -202,12 +168,9 @@ async function handleGenerate(pageId, req, res) {
     }
   }
 
-  // Save variants on the page object
-  page.variants = [...(page.variants || []), ...variants];
-  page.ab_test_active = false;
-  pages[pageIndex] = page;
-
-  await saveGitHubFile('data/pages.json', pages, sha, `Add ${variants.length} variants for ${page.name}`);
+  // Save variants on the page object via storage module
+  const updatedVariants = [...(page.variants || []), ...variants];
+  await updatePage(pageId, { variants: updatedVariants, ab_test_active: false });
 
   return res.status(200).json({
     success: true,
@@ -225,10 +188,7 @@ async function handleGenerate(pageId, req, res) {
 
 // List variants for a page
 async function handleList(pageId, req, res) {
-  const { data: pages } = await getGitHubFile('data/pages.json');
-  if (!pages) return res.status(500).json({ error: 'Could not load pages' });
-
-  const page = pages.find(p => p.id === pageId);
+  const page = await getPage(pageId);
   if (!page) return res.status(404).json({ error: 'Page not found' });
 
   const variants = (page.variants || []).map(v => ({
@@ -254,23 +214,18 @@ async function handleList(pageId, req, res) {
 
 // Delete a variant
 async function handleDelete(pageId, variantId, req, res) {
-  const { data: pages, sha } = await getGitHubFile('data/pages.json');
-  if (!pages) return res.status(500).json({ error: 'Could not load pages' });
+  const page = await getPage(pageId);
+  if (!page) return res.status(404).json({ error: 'Page not found' });
 
-  const pageIndex = pages.findIndex(p => p.id === pageId);
-  if (pageIndex === -1) return res.status(404).json({ error: 'Page not found' });
-
-  const page = pages[pageIndex];
   const beforeCount = (page.variants || []).length;
-  page.variants = (page.variants || []).filter(v => v.id !== variantId);
-  const afterCount = page.variants.length;
+  const filteredVariants = (page.variants || []).filter(v => v.id !== variantId);
+  const afterCount = filteredVariants.length;
 
   if (beforeCount === afterCount) {
     return res.status(404).json({ error: 'Variant not found' });
   }
 
-  pages[pageIndex] = page;
-  await saveGitHubFile('data/pages.json', pages, sha, `Delete variant ${variantId} from ${page.name}`);
+  await updatePage(pageId, { variants: filteredVariants });
 
   return res.status(200).json({
     success: true,
