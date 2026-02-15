@@ -30,9 +30,11 @@ export default async function handler(req, res) {
         return res.json(page);
       }
       const pages = await getPages(false);
-      const pageList = pages.map(({ html_content, ...rest }) => ({
-        ...rest, url: rest.url || `/p/${rest.slug}`, clientName: rest.client_name || rest.clientName || ''
-      }));
+      const pageList = pages.map(({ html_content, ...rest }) => {
+        let url = rest.url || `/p/${rest.slug}`;
+        if (url && !url.startsWith('/p/') && !url.startsWith('http')) url = `/p/${url}`;
+        return { ...rest, url, clientName: rest.client_name || rest.clientName || '' };
+      });
       return res.json({ pages: pageList });
     }
 

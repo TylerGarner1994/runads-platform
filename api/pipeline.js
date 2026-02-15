@@ -526,7 +526,7 @@ async function runAssembly(job) {
     meta_description: copy.meta?.description || '',
     created_at: new Date().toISOString(),
     deployed_at: new Date().toISOString(),
-    url: slug,
+    url: `/p/${slug}`,
     generation_job_id: job.id,
     factcheck_score: factcheck.overall_score || null
   };
