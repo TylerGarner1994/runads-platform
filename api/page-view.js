@@ -83,7 +83,7 @@ function getAdminWidgetHtml(slug) {
     .finally(function(){btn.disabled=false;btn.textContent='Send';});
   }
   document.addEventListener('keydown',function(e){
-    if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key==='E'){e.preventDefault();toggle();}
+    if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.code==='KeyE'){e.preventDefault();toggle();}
     if(e.key==='Escape'&&open)toggle();
   });
 })();
