@@ -1401,6 +1401,7 @@ const html = `
 <div class="tab" onclick="switchClientTab(this, 'brand-guide')">Brand Guide</div>
 <div class="tab" onclick="switchClientTab(this, 'research')">Research</div>
 <div class="tab" onclick="switchClientTab(this, 'verified-facts')">Verified Facts</div>
+<div class="tab" onclick="switchClientTab(this, 'assets')">Asset Library</div>
 <div class="tab" onclick="switchClientTab(this, 'pages')">Pages</div>
 </div>
 <div id="clientTabs">
@@ -1695,6 +1696,28 @@ return \`
 \`;
 }).join('')}
 ${(!client.claims || client.claims.length === 0) ? '<div style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;">No verified claims yet. Click "Scrape from Website" to auto-extract claims, or add them manually.</div>' : ''}
+</div>
+</div>
+</div>
+<div id="assets-tab" class="tab-content hidden">
+<div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<div>
+<h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Scraped Website Images</h3>
+<p style="font-size:13px;color:#6b7280;">Product images and assets automatically pulled from the client's website. These are injected into generated pages.</p>
+</div>
+<button class="btn btn-secondary btn-small" onclick="rescrapeImages('${client.id}', '${client.website || ''}')">Re-scrape Images</button>
+</div>
+<div id="scrapedImageGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
+${(client._scrapedImages || client.scrapedImages || []).map((img, i) => `
+<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;" title="${img.alt || img.url}" onclick="selectAssetImage(this)">
+<img src="${img.url}" alt="${img.alt || 'Product image'}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;" loading="lazy" onerror="this.parentElement.style.display='none'">
+<div style="padding:6px 8px;font-size:11px;">
+<span style="padding:1px 6px;background:${img.category === 'product' ? '#dbeafe' : img.category === 'hero' ? '#fef3c7' : '#f1f5f9'};color:${img.category === 'product' ? '#1d4ed8' : img.category === 'hero' ? '#92400e' : '#475569'};border-radius:6px;font-weight:600;text-transform:uppercase;font-size:9px;">${img.category || 'general'}</span>
+</div>
+</div>
+`).join('')}
+${(!client._scrapedImages && !client.scrapedImages) || (client._scrapedImages || client.scrapedImages || []).length === 0 ? '<div style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;grid-column:1/-1;">No images scraped yet. Run the pipeline or click "Re-scrape Images" to pull images from the client website.</div>' : ''}
 </div>
 </div>
 </div>
@@ -3143,6 +3166,35 @@ async function scrapeVerifiedClaims(clientId) {
   }
   btn.disabled = false;
   btn.textContent = 'Scrape from Website';
+}
+async function rescrapeImages(clientId, website) {
+  if (!website) { alert('No website URL set for this client.'); return; }
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Scraping images...';
+  try {
+    const response = await fetch('/api/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'scrape-images', clientId, url: website })
+    });
+    const data = await response.json();
+    if (data.images && data.images.length > 0) {
+      alert('Found ' + data.images.length + ' images!');
+      showClientDetail(clientId);
+    } else {
+      alert('No usable images found on the website.');
+    }
+  } catch (err) {
+    console.error('Image scrape failed:', err);
+    alert('Failed to scrape images: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Re-scrape Images';
+}
+function selectAssetImage(el) {
+  el.classList.toggle('selected');
+  el.style.outline = el.classList.contains('selected') ? '3px solid #2563eb' : 'none';
 }
 function toggleChatPanel(){
 document.getElementById('chatPanel').classList.toggle('active');

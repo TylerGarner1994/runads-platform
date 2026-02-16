@@ -5,7 +5,7 @@
 export const config = { maxDuration: 300 };
 
 import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, getStepLabel, PIPELINE_STEPS } from '../lib/job-manager.js';
-import { scrapeWebsite, extractBrandAssets } from '../lib/website-scraper.js';
+import { scrapeWebsite, extractBrandAssets, extractImages, fetchPage } from '../lib/website-scraper.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
 import { savePage as savePageToStorage, getClient, updateClient } from '../lib/storage.js';
@@ -140,6 +140,8 @@ Return a JSON object with these fields:
   researchData._websiteMeta = websiteData.meta || {};
   researchData._scrapedColors = websiteData.colors || [];
   researchData._scrapedFonts = websiteData.fonts || [];
+  researchData._scrapedImages = websiteData.images || [];
+  researchData._scrapedTestimonials = websiteData.testimonials || [];
 
   return { data: researchData, tokensUsed };
 }
@@ -455,6 +457,10 @@ Company: ${companyName}
 Industry: ${research.industry || ''}
 Tone: ${brand.brand_voice?.tone || job.input_data.tone || 'Professional'}
 
+${(research._scrapedImages || []).length > 0 ? `AVAILABLE PRODUCT IMAGES FROM CLIENT WEBSITE (use these instead of placeholders):
+${(research._scrapedImages || []).slice(0, 8).map((img, i) => `${i + 1}. ${img.url} (${img.category}${img.alt ? ', alt: ' + img.alt : ''})`).join('\n')}
+IMPORTANT: Use these real image URLs in <img> tags wherever an image is needed. Do NOT use placeholder.com or similar dummy images.` : ''}
+
 ${getPageTypeDesignInstructions(pageType)}
 
 Return a JSON object with ALL placeholders filled. For body/section placeholders, use <p> tags for paragraphs. For list items, use appropriate HTML. Example:
@@ -553,6 +559,58 @@ async function runAssembly(job) {
   const factcheck = job.factcheck_data || {};
   const pageType = job.page_type;
   const companyName = research.company_name || 'Landing Page';
+
+  // ── Inject real product images from website scrape ──
+  const scrapedImages = research._scrapedImages || [];
+  if (scrapedImages.length > 0) {
+    // Categorize available images
+    const productImages = scrapedImages.filter(i => i.category === 'product');
+    const heroImages = scrapedImages.filter(i => i.category === 'hero');
+    const galleryImages = scrapedImages.filter(i => i.category === 'gallery');
+    const featureImages = scrapedImages.filter(i => i.category === 'feature');
+    const allUsable = [...productImages, ...heroImages, ...galleryImages, ...featureImages, ...scrapedImages.filter(i => i.category === 'general')];
+
+    // Replace placeholder image patterns with real images
+    // Common patterns: placeholder.com, via.placeholder, placehold.it, unsplash source, picsum
+    const placeholderPattern = /https?:\/\/(via\.placeholder\.com|placehold\.it|placeholder\.com|source\.unsplash\.com|picsum\.photos|dummyimage\.com)[^\s"')]+/gi;
+    let imgIndex = 0;
+    html = html.replace(placeholderPattern, () => {
+      if (imgIndex < allUsable.length) {
+        return allUsable[imgIndex++].url;
+      }
+      return allUsable.length > 0 ? allUsable[0].url : '';
+    });
+
+    // Also replace data-placeholder-image attributes (custom pattern for our templates)
+    html = html.replace(/data-placeholder-image="([^"]*)"/gi, (match, type) => {
+      let img;
+      if (type === 'product' && productImages.length > 0) img = productImages[0];
+      else if (type === 'hero' && heroImages.length > 0) img = heroImages[0];
+      else if (allUsable.length > 0) img = allUsable[0];
+      return img ? `src="${img.url}" alt="${img.alt || companyName}"` : match;
+    });
+
+    // Replace generic "product-image" class img src with product images
+    const productImgPattern = /(<img[^>]*class="[^"]*product[^"]*"[^>]*src=")([^"]+)(")/gi;
+    let pIdx = 0;
+    html = html.replace(productImgPattern, (match, before, src, after) => {
+      if (pIdx < productImages.length) {
+        return before + productImages[pIdx++].url + after;
+      } else if (allUsable.length > 0) {
+        return before + allUsable[0].url + after;
+      }
+      return match;
+    });
+
+    // Inject an image gallery section if we have 3+ product/gallery images and there's a {{PRODUCT_IMAGES}} slot
+    if (allUsable.length >= 3 && html.includes('{{PRODUCT_IMAGES}}')) {
+      const galleryHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;padding:24px 0;">
+        ${allUsable.slice(0, 6).map(img => `<img src="${img.url}" alt="${img.alt || companyName}" style="width:100%;border-radius:12px;object-fit:cover;aspect-ratio:1;" loading="lazy">`).join('\n        ')}
+      </div>`;
+      html = html.replace('{{PRODUCT_IMAGES}}', galleryHtml);
+    }
+    html = html.replace('{{PRODUCT_IMAGES}}', '');
+  }
 
   // Generate a slug
   const slug = `${pageType}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50)}-${Date.now().toString(36)}`;
@@ -767,6 +825,11 @@ export default async function handler(req, res) {
       return handleScrapeClaims(req, res);
     }
 
+    // POST /api/pipeline/scrape-images (or body action)
+    if ((pathParts[0] === 'scrape-images' || req.body?.action === 'scrape-images') && req.method === 'POST') {
+      return handleScrapeImages(req, res);
+    }
+
     // POST /api/pipeline/start
     if (pathParts[0] === 'start' && req.method === 'POST') {
       return handleStart(req, res);
@@ -785,6 +848,30 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Unknown pipeline action', path: pathParts });
   } catch (error) {
     console.error('Pipeline error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+// Handle POST /api/pipeline/scrape-images
+async function handleScrapeImages(req, res) {
+  const { clientId, url } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'URL is required' });
+
+  try {
+    const html = await fetchPage(url);
+    const images = extractImages(html, url);
+
+    // Save to client record
+    if (clientId && images.length > 0) {
+      const client = await getClient(clientId);
+      if (client) {
+        await updateClient(clientId, { scrapedImages: images, _scrapedImages: images });
+      }
+    }
+
+    return res.json({ success: true, images, count: images.length });
+  } catch (error) {
+    console.error('Scrape images error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
