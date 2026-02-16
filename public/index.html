@@ -1149,6 +1149,102 @@ margin-top:16px;
 </div>
 </div>
 </div>
+<div class="modal-overlay" id="qualityReviewModal">
+<div class="modal" style="max-width:700px;">
+<div class="modal-header">
+<h2 class="modal-header-title">⭐ Quality Review</h2>
+<button class="modal-close" onclick="closeModal('qualityReviewModal')">✕</button>
+</div>
+<div class="modal-body">
+<p style="color:#64748b;font-size:14px;margin-bottom:20px;">Review this page's output quality. Your feedback helps improve future generations.</p>
+<div id="qualityReviewContent">
+<div style="margin-bottom:24px;">
+<h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Overall Quality Score</h3>
+<div id="qualityStars" style="display:flex;gap:8px;margin-bottom:8px;">
+<button onclick="setQualityRating(1)" class="quality-star" style="font-size:28px;background:none;border:none;cursor:pointer;opacity:0.3;">⭐</button>
+<button onclick="setQualityRating(2)" class="quality-star" style="font-size:28px;background:none;border:none;cursor:pointer;opacity:0.3;">⭐</button>
+<button onclick="setQualityRating(3)" class="quality-star" style="font-size:28px;background:none;border:none;cursor:pointer;opacity:0.3;">⭐</button>
+<button onclick="setQualityRating(4)" class="quality-star" style="font-size:28px;background:none;border:none;cursor:pointer;opacity:0.3;">⭐</button>
+<button onclick="setQualityRating(5)" class="quality-star" style="font-size:28px;background:none;border:none;cursor:pointer;opacity:0.3;">⭐</button>
+</div>
+<div id="qualityRatingLabel" style="font-size:13px;color:#64748b;"></div>
+</div>
+<div style="margin-bottom:20px;">
+<h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Category Scores</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div class="form-group">
+<label style="font-size:13px;">Headline Impact</label>
+<select id="qHeadline" style="padding:8px 10px;font-size:13px;">
+<option value="">— Rate —</option>
+<option value="5">Excellent — Compelling, scroll-stopping</option>
+<option value="4">Good — Strong, on-brand</option>
+<option value="3">Average — Functional but generic</option>
+<option value="2">Below Average — Weak or off-brand</option>
+<option value="1">Poor — Confusing or irrelevant</option>
+</select>
+</div>
+<div class="form-group">
+<label style="font-size:13px;">Copy Quality</label>
+<select id="qCopy" style="padding:8px 10px;font-size:13px;">
+<option value="">— Rate —</option>
+<option value="5">Excellent — Editorial, persuasive</option>
+<option value="4">Good — Professional, clear</option>
+<option value="3">Average — Reads like AI, generic</option>
+<option value="2">Below Average — Repetitive, bland</option>
+<option value="1">Poor — Factual errors, off-topic</option>
+</select>
+</div>
+<div class="form-group">
+<label style="font-size:13px;">Visual Design</label>
+<select id="qDesign" style="padding:8px 10px;font-size:13px;">
+<option value="">— Rate —</option>
+<option value="5">Excellent — Professional, modern</option>
+<option value="4">Good — Clean, well-structured</option>
+<option value="3">Average — Basic, needs polish</option>
+<option value="2">Below Average — Cluttered, dated</option>
+<option value="1">Poor — Broken layout, unreadable</option>
+</select>
+</div>
+<div class="form-group">
+<label style="font-size:13px;">Call-to-Action</label>
+<select id="qCTA" style="padding:8px 10px;font-size:13px;">
+<option value="">— Rate —</option>
+<option value="5">Excellent — Urgent, compelling</option>
+<option value="4">Good — Clear, visible</option>
+<option value="3">Average — Present but generic</option>
+<option value="2">Below Average — Weak or hidden</option>
+<option value="1">Poor — Missing or confusing</option>
+</select>
+</div>
+</div>
+</div>
+<div class="form-group" style="margin-bottom:20px;">
+<label style="font-size:13px;">Specific Issues (one per line)</label>
+<textarea id="qIssues" rows="3" placeholder="e.g., Headline doesn't match brand voice&#10;Hero image is a placeholder&#10;CTA button text too generic&#10;Missing social proof section"></textarea>
+</div>
+<div class="form-group" style="margin-bottom:20px;">
+<label style="font-size:13px;">What Would Make It Better?</label>
+<textarea id="qSuggestions" rows="3" placeholder="e.g., Use more specific statistics&#10;Add real customer testimonials&#10;Make the tone more conversational&#10;Add an ingredient spotlight section"></textarea>
+</div>
+<div class="form-group" style="margin-bottom:4px;">
+<label style="font-size:13px;">Comparison to Unicorn Output</label>
+<select id="qUnicornCompare" style="padding:8px 10px;font-size:13px;">
+<option value="">— Select —</option>
+<option value="better">Better than Unicorn output</option>
+<option value="equal">About the same quality</option>
+<option value="close">Close, but Unicorn is slightly better</option>
+<option value="gap">Noticeable quality gap</option>
+<option value="far">Significantly worse than Unicorn</option>
+</select>
+</div>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('qualityReviewModal')">Cancel</button>
+<button class="btn btn-primary" onclick="submitQualityReview()">Save Review</button>
+</div>
+</div>
+</div>
 <div class="chat-panel" id="chatPanel">
 <div class="chat-header">
 <span style="font-weight:600;">AI Assistant</span>
@@ -1329,6 +1425,7 @@ const html = `
 <th>Views</th>
 <th>Leads</th>
 <th>Conv.</th>
+<th>Score</th>
 <th>URL</th>
 <th>Actions</th>
 </tr>
@@ -1345,7 +1442,7 @@ function renderPagesTable(){
 const tbody = document.getElementById('pagesTable');
 tbody.innerHTML = '';
 if (app.pages.length === 0){
-tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#6b7280;">No pages yet. Create one to get started!</td></tr>';
+tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#6b7280;">No pages yet. Create one to get started!</td></tr>';
 return;
 }
 app.pages.forEach(page =>{
@@ -1358,13 +1455,15 @@ row.innerHTML = `
 <td>${page.views || 0}</td>
 <td>${page.leads || 0}</td>
 <td>${conv}%</td>
+<td>${page.quality_score ? `<span style="color:${page.quality_score >= 4 ? '#10b981' : page.quality_score >= 3 ? '#f59e0b' : '#ef4444'};font-weight:600;">${page.quality_score}/5</span>` : '<span style="color:#cbd5e1;font-size:12px;">—</span>'}</td>
 <td>
-<a href="${page.url}" target="_blank" style="color:#2563eb;text-decoration:none;">Vercel →</a>
+<a href="${page.url}" target="_blank" style="color:#6366f1;text-decoration:none;">Vercel →</a>
 ${page.github_pages_url ? `<br><a href="${page.github_pages_url}" target="_blank" style="color:#10b981;text-decoration:none;font-size:12px;">GitHub Pages →</a>` : ''}
 </td>
 <td>
 <div class="action-buttons">
 <button class="action-button" title="Visual Edit" onclick="editPage('${page.id}')">🎨</button>
+<button class="action-button" title="Quality Review" onclick="openQualityReview('${page.id}')">⭐</button>
 <button class="action-button" title="Analytics" onclick="viewPageAnalytics('${page.id}')">📊</button>
 <button class="action-button" title="A/B Variants" onclick="generateVariants('${page.id}')">🔀</button>
 <button class="action-button" title="Edit HTML" onclick="openHtmlEditor('${page.id}')">✏️</button>
@@ -3243,7 +3342,65 @@ async function rescrapeImages(clientId, website) {
 }
 function selectAssetImage(el) {
   el.classList.toggle('selected');
-  el.style.outline = el.classList.contains('selected') ? '3px solid #2563eb' : 'none';
+  el.style.outline = el.classList.contains('selected') ? '3px solid #6366f1' : 'none';
+}
+let currentQualityRating = 0;
+let reviewingPageId = null;
+function openQualityReview(pageId) {
+  reviewingPageId = pageId;
+  currentQualityRating = 0;
+  document.querySelectorAll('.quality-star').forEach(s => s.style.opacity = '0.3');
+  document.getElementById('qualityRatingLabel').textContent = '';
+  document.getElementById('qHeadline').value = '';
+  document.getElementById('qCopy').value = '';
+  document.getElementById('qDesign').value = '';
+  document.getElementById('qCTA').value = '';
+  document.getElementById('qIssues').value = '';
+  document.getElementById('qSuggestions').value = '';
+  document.getElementById('qUnicornCompare').value = '';
+  openModal('qualityReviewModal');
+}
+function setQualityRating(rating) {
+  currentQualityRating = rating;
+  const labels = ['', 'Poor — Major issues', 'Below Average — Needs work', 'Average — Acceptable', 'Good — Solid output', 'Excellent — Unicorn-quality'];
+  document.getElementById('qualityRatingLabel').textContent = labels[rating] || '';
+  document.querySelectorAll('.quality-star').forEach((s, i) => {
+    s.style.opacity = i < rating ? '1' : '0.3';
+  });
+}
+async function submitQualityReview() {
+  if (!currentQualityRating) { alert('Please set an overall quality rating.'); return; }
+  const review = {
+    pageId: reviewingPageId,
+    overall: currentQualityRating,
+    headline: parseInt(document.getElementById('qHeadline').value) || null,
+    copy: parseInt(document.getElementById('qCopy').value) || null,
+    design: parseInt(document.getElementById('qDesign').value) || null,
+    cta: parseInt(document.getElementById('qCTA').value) || null,
+    issues: document.getElementById('qIssues').value.trim().split('\n').filter(Boolean),
+    suggestions: document.getElementById('qSuggestions').value.trim().split('\n').filter(Boolean),
+    unicornCompare: document.getElementById('qUnicornCompare').value,
+    timestamp: new Date().toISOString()
+  };
+  try {
+    const page = app.pages.find(p => p.id === reviewingPageId);
+    if (page) {
+      const reviews = page.quality_reviews || [];
+      reviews.push(review);
+      await fetch(`/api/pages/${reviewingPageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quality_reviews: reviews, quality_score: currentQualityRating })
+      });
+      page.quality_reviews = reviews;
+      page.quality_score = currentQualityRating;
+    }
+    closeModal('qualityReviewModal');
+    alert('Quality review saved! Average score: ' + currentQualityRating + '/5');
+  } catch (err) {
+    console.error('Failed to save review:', err);
+    alert('Failed to save review: ' + err.message);
+  }
 }
 function toggleChatPanel(){
 document.getElementById('chatPanel').classList.toggle('active');
