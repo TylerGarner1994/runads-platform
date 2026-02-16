@@ -8,7 +8,7 @@ import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, g
 import { scrapeWebsite, extractBrandAssets } from '../lib/website-scraper.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
-import { savePage as savePageToStorage } from '../lib/storage.js';
+import { savePage as savePageToStorage, getClient, updateClient } from '../lib/storage.js';
 
 // ============================================================
 // ANTHROPIC API HELPER
@@ -283,9 +283,24 @@ async function runCopy(job) {
 
   const triggerContext = buildTriggerContext(pageType, 'solution_aware', 6);
 
-  const systemPrompt = `You are a master copywriter combining the skills of Gary Halbert (direct response hooks), Joanna Wiebe (conversion copy), David Ogilvy (persuasive elegance), and Eugene Schwartz (breakthrough advertising). Write compelling copy that sells. Return valid JSON only.`;
+  const systemPrompt = `You are a master editorial copywriter and narrative architect. You combine:
+- **Gary Halbert's** direct response hooks and "A-pile" urgency
+- **Eugene Schwartz's** awareness-level sophistication and "Breakthrough Advertising" frameworks
+- **David Ogilvy's** research-driven elegance and factual specificity
+- **Joe Sugarman's** "slippery slide" — every line compels the next
+- **Gay Talese's** New Journalism narrative immersion (named characters, sensory details, scenes)
 
-  const userPrompt = `Write all copy for a ${pageType} landing page based on this strategy.
+Your copy doesn't read like marketing. It reads like a compelling editorial piece that happens to lead to a product. You use:
+- **Named characters** with specific, relatable details (not "a busy mom" but "Lisa, a 42-year-old architect who hasn't slept through the night in 3 years")
+- **Sensory language** that puts the reader in a scene (sounds, textures, emotions)
+- **Data woven into narrative** (not just "clinically proven" but "In a 2024 randomized trial at the University of Melbourne, participants experienced a 47% improvement in deep sleep cycles within 14 days")
+- **Drop caps** for section openers to create editorial gravitas
+- **Pull quotes** that highlight the most compelling statistics or testimonials
+- **Progressive disclosure** — revealing information in a way that builds curiosity and momentum
+
+Return valid JSON only.`;
+
+  const userPrompt = `Write all copy for a ${pageType} landing page based on this strategy. The copy should be editorial-quality narrative, not generic marketing.
 
 STRATEGY:
 ${JSON.stringify(strategy, null, 2)}
@@ -300,41 +315,62 @@ Company: ${research.company_name || 'Unknown'}
 Value Props: ${JSON.stringify(research.value_propositions || [])}
 Key Claims: ${JSON.stringify(research.key_claims || [])}
 Testimonials: ${JSON.stringify(research.testimonials || [])}
+Products: ${JSON.stringify(research.products || [])}
+Differentiators: ${JSON.stringify(research.differentiators || [])}
 
 ${triggerContext}
+
+## EDITORIAL WRITING PRINCIPLES
+1. **Open with a scene, not a claim.** "It was 3 AM when Lisa's phone buzzed..." not "Introducing the revolutionary..."
+2. **Create a named protagonist** whose journey mirrors the target audience's experience
+3. **Cite specific data** — real numbers, named studies, expert quotes. Not "experts say" but "Dr. Sarah Chen, a sleep researcher at Monash University, found that..."
+4. **Use the Unique Mechanism reveal** — build tension about WHY existing solutions fail, then reveal the specific mechanism that makes this different
+5. **Each section should have a narrative arc** — tension, insight, resolution
+6. **Write body copy in full paragraphs** (3-5 sentences each), not bullet points
+7. **Include "fascination bullets"** — specific, curiosity-driven benefit statements (e.g., "The 90-second ritual that reverses years of chronic fatigue — page 7")
+8. **End with a guarantee that eliminates risk** — frame it as confidence, not desperation
 
 Return JSON with all copy variations:
 {
   "headlines": {
-    "hero_headline": "string",
-    "hero_subheadline": "string",
-    "section_headlines": ["string", ...]
+    "hero_headline": "string — power headline with emotional specificity",
+    "hero_subheadline": "string — supports with mechanism or proof",
+    "section_headlines": ["string — each should create curiosity"]
   },
   "hero": {
-    "above_fold_text": "string",
-    "primary_cta_text": "string",
-    "secondary_cta_text": "string or null"
+    "above_fold_text": "string — opening narrative hook (2-3 sentences)",
+    "primary_cta_text": "string — benefit-driven CTA",
+    "secondary_cta_text": "string or null",
+    "social_proof_banner": "string — quick credibility (e.g., 'Trusted by 50,000+ Australians')"
   },
   "body_sections": [
     {
       "section_name": "string",
-      "headline": "string",
-      "body_copy": "string (full copy for this section)",
+      "headline": "string — curiosity-driven section headline",
+      "body_copy": "string (full editorial-quality copy for this section — 3-5 paragraphs minimum, with narrative flow, named characters where appropriate, and specific data)",
+      "pull_quote": "string or null — the most powerful quote/stat from this section",
       "cta_text": "string or null"
     }
   ],
   "social_proof": {
-    "stats": [{"number": "string", "label": "string"}],
-    "testimonials": [{"quote": "string", "author": "string", "result": "string"}]
+    "stats": [{"number": "string (specific)", "label": "string (with context)"}],
+    "testimonials": [{"quote": "string (specific, detailed)", "author": "string (with credentials/location)", "result": "string (measurable outcome)"}]
   },
+  "fascination_bullets": [
+    "string — specific, curiosity-driven benefit statements"
+  ],
   "ctas": {
-    "primary": "string",
-    "secondary": "string",
-    "final": "string"
+    "primary": "string — main CTA (benefit + action)",
+    "secondary": "string — softer alternative",
+    "final": "string — urgency-driven closing CTA"
+  },
+  "guarantee": {
+    "headline": "string",
+    "body": "string — risk-reversal copy"
   },
   "meta": {
-    "title": "string",
-    "description": "string"
+    "title": "string — SEO optimized",
+    "description": "string — click-optimized meta description"
   }
 }`;
 
@@ -726,6 +762,11 @@ export default async function handler(req, res) {
     const url = new URL(req.url, `https://${req.headers.host}`);
     const pathParts = url.pathname.replace('/api/pipeline', '').split('/').filter(Boolean);
 
+    // POST /api/pipeline/scrape-claims (or body action)
+    if ((pathParts[0] === 'scrape-claims' || req.body?.action === 'scrape-claims') && req.method === 'POST') {
+      return handleScrapeClaims(req, res);
+    }
+
     // POST /api/pipeline/start
     if (pathParts[0] === 'start' && req.method === 'POST') {
       return handleStart(req, res);
@@ -879,5 +920,87 @@ async function handleStep(jobId, stepName, req, res) {
       step: stepName,
       error: error.message
     });
+  }
+}
+
+// ============================================================
+// SCRAPE VERIFIED CLAIMS from a client's website
+// ============================================================
+
+async function handleScrapeClaims(req, res) {
+  const { clientId, url } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'URL is required' });
+
+  try {
+    // Step 1: Scrape the website
+    const siteData = await scrapeWebsite(url);
+
+    // Step 2: Use Claude to extract verified claims, testimonials, and statistics
+    const systemPrompt = `You are an expert researcher who extracts verified, factual claims from websites. Your job is to analyze website content and identify three categories of verifiable information:
+
+1. **CLAIMS** — Factual statements about the product, company, or ingredients that can be verified (e.g., "Made with 100% organic ingredients", "Founded in 2015", "FDA-approved facility")
+2. **TESTIMONIALS** — Customer reviews, success stories, or endorsements with specific details (e.g., "After 3 weeks, my energy levels doubled — Sarah M., Melbourne")
+3. **STATISTICS** — Numerical data, study results, or measurable outcomes (e.g., "95% of customers report improved sleep within 2 weeks", "Contains 40mg of active compound per serving")
+
+IMPORTANT RULES:
+- Only extract information that is ACTUALLY STATED on the website — never infer or fabricate
+- Include the source (which page or section the claim comes from)
+- Be conservative: if a claim seems vague or unverifiable, skip it
+- Preserve the exact wording where possible
+- Focus on claims that would be powerful in advertising (social proof, credibility, differentiators)`;
+
+    const userPrompt = `Analyze this website content and extract all verified claims, testimonials, and statistics.
+
+Website URL: ${url}
+Website Title: ${siteData.title || 'Unknown'}
+
+## Scraped Content
+${siteData.textContent?.slice(0, 15000) || 'No content scraped'}
+
+${siteData.metaDescription ? `Meta Description: ${siteData.metaDescription}` : ''}
+
+## Output Format
+Return a JSON array of claims:
+{
+  "claims": [
+    {
+      "text": "The exact claim or testimonial text",
+      "category": "CLAIM" | "TESTIMONIAL" | "STATISTIC",
+      "source": "URL or page section where this was found",
+      "confidence": "HIGH" | "MEDIUM" — how verifiable/specific is this claim?
+    }
+  ]
+}
+
+Extract as many legitimate claims as you can find. Focus on high-confidence, specific, factual statements that would be powerful in advertising copy.`;
+
+    const result = await callClaude(systemPrompt, userPrompt);
+    const parsed = parseJSON(result.text);
+    const claims = parsed.claims || [];
+
+    // Step 3: Save claims to client record
+    if (clientId && claims.length > 0) {
+      const client = await getClient(clientId);
+      if (client) {
+        const existingClaims = client.claims || [];
+        const newClaims = claims.map(c => ({
+          ...c,
+          id: `claim_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          created_at: new Date().toISOString(),
+          scraped: true
+        }));
+        await updateClient(clientId, { claims: [...existingClaims, ...newClaims] });
+      }
+    }
+
+    return res.json({
+      success: true,
+      claims,
+      tokensUsed: result.tokensUsed
+    });
+
+  } catch (error) {
+    console.error('Scrape claims error:', error);
+    return res.status(500).json({ error: error.message });
   }
 }

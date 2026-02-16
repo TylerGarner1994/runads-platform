@@ -31,16 +31,127 @@ const AWARENESS_LEVELS = {
 };
 
 const COGNITIVE_BIASES = {
+  'loss_aversion': 'Frame benefits as what they\'ll lose by not acting — people feel losses 2x more than gains',
+  'sunk_cost': 'Remind them of time/money already invested that would be wasted without action',
+  'zero_risk': 'Eliminate all perceived risk with guarantees, free trials, and money-back promises',
+  'regret_aversion': 'Paint a vivid picture of future regret from inaction',
+  'endowment': 'Help them feel ownership before purchase — free trials, personalization, "your plan"',
+  'social_proof': 'Show numbers of others who have already taken action — reviews, counts, testimonials',
+  'bandwagon': 'Show trending popularity and growing adoption — "fastest-growing", "join X others"',
+  'in_group': 'Create us-vs-them framing — insiders who "get it" vs those still struggling',
+  'authority': 'Feature expert endorsements, credentials, clinical studies, or institutional data',
+  'halo_effect': 'Associate product with admired brands, celebrities, or prestigious institutions',
+  'liking': 'Use relatable founders, friendly faces, and genuine personality to build rapport',
   'anchoring': 'Show a high reference price before revealing the actual lower price',
-  'loss_aversion': 'Frame benefits as what they\'ll lose by not acting',
-  'social_proof': 'Show numbers of others who have already taken action',
-  'authority': 'Feature expert endorsements, credentials, or data',
-  'scarcity': 'Emphasize limited availability or time constraints',
-  'reciprocity': 'Lead with free value before asking for action',
-  'bandwagon': 'Show trending popularity and growing adoption',
-  'framing': 'Present the same info in the most persuasive light',
-  'contrast': 'Place undesirable alternative next to your offer',
-  'endowment': 'Help them feel ownership before purchase'
+  'framing': 'Present the same info in the most persuasive light — "95% success" vs "5% failure"',
+  'availability_heuristic': 'Use vivid, memorable examples that come to mind easily',
+  'representativeness': 'Show the ideal customer who looks/sounds exactly like the target audience',
+  'default_effect': 'Pre-select the recommended option — people tend to stick with defaults',
+  'mere_exposure': 'Increase familiarity through repetition of brand elements and key messages',
+  'scarcity': 'Emphasize limited availability, countdown timers, or "only X left"',
+  'curiosity_gap': 'Tease a surprising fact or method without fully revealing it — create information hunger',
+  'ikea_effect': 'Let them build/customize something — people value what they help create',
+  'reciprocity': 'Lead with free value before asking for action — give first, ask second',
+  'commitment_consistency': 'Start with small asks that lead to bigger commitments — foot-in-the-door',
+  'goal_gradient': 'Show progress toward a goal — "You\'re 80% there" motivates completion',
+  'contrast_effect': 'Place undesirable alternative next to your offer to make it look superior',
+  'decoy_effect': 'Add a strategically inferior option that makes the target option look best',
+  'von_restorff': 'Make the key element visually distinct — isolation effect draws attention',
+  'picture_superiority': 'Use vivid imagery over text — images are remembered 6x better than words',
+  'rhyme_as_reason': 'Rhyming phrases feel more truthful and memorable — "no pain, all gain"',
+  'processing_fluency': 'Keep it simple and easy to read — fluent messages feel more trustworthy',
+  'ben_franklin': 'Ask for a small favor first — people who help you start to like you more',
+  'pratfall_effect': 'Show a minor, relatable flaw to increase likability and authenticity',
+  'peak_end_rule': 'Make the peak moment and ending of the experience exceptional',
+  'confirmation_bias': 'Affirm what the audience already believes, then extend to your solution',
+  'survivorship_bias': 'Spotlight success stories while being transparent about the journey'
+};
+
+// ============================================================
+// POWER STACKS - Pre-built cognitive bias combinations
+// ============================================================
+const POWER_STACKS = {
+  'urgency': {
+    name: 'Urgency Stack',
+    biases: ['scarcity', 'loss_aversion', 'regret_aversion', 'goal_gradient', 'zero_risk'],
+    description: 'Maximum urgency — limited time/quantity + fear of missing out + risk removal'
+  },
+  'trust': {
+    name: 'Trust Stack',
+    biases: ['social_proof', 'authority', 'commitment_consistency', 'processing_fluency', 'pratfall_effect'],
+    description: 'Build deep credibility — proof + experts + consistency + authenticity'
+  },
+  'desire': {
+    name: 'Desire Stack',
+    biases: ['endowment', 'curiosity_gap', 'anticipation', 'peak_end_rule', 'picture_superiority'],
+    description: 'Create intense wanting — ownership + curiosity + vivid imagery'
+  },
+  'comparison': {
+    name: 'Comparison Stack',
+    biases: ['anchoring', 'contrast_effect', 'decoy_effect', 'framing', 'zero_risk'],
+    description: 'Make your offer the obvious choice — price anchoring + contrast + framing'
+  },
+  'identity': {
+    name: 'Identity Stack',
+    biases: ['in_group', 'confirmation_bias', 'liking', 'bandwagon', 'representativeness'],
+    description: 'Deep audience resonance — "this is for people like me"'
+  }
+};
+
+// ============================================================
+// 50 AD STYLES for Image Prompt Generation
+// ============================================================
+const AD_STYLES = {
+  'professional_studio': 'Clean studio lighting, white/gray background, commercial product photography',
+  'lifestyle': 'Natural setting, real-world use, warm lifestyle photography',
+  'ugc_raw': 'User-generated content feel, iPhone-quality, authentic and unpolished',
+  'flatlay': 'Top-down flat lay arrangement, organized layout, minimal background',
+  'minimalist': 'Negative space, single focal point, clean and uncluttered',
+  'maximalist': 'Dense, information-rich, bold colors, multiple elements competing for attention',
+  'dark_mode': 'Dark background, moody lighting, high contrast, premium feel',
+  'editorial': 'Magazine-quality composition, editorial lighting, fashion/beauty aesthetic',
+  '3d_render': 'CGI/3D rendered product, floating elements, impossible physics',
+  'hand_drawn': 'Illustrated, hand-drawn elements, sketch-style, artistic feel',
+  'product_demo': 'Product in use, demonstration shot, before/during/after',
+  'founder_forward': 'Founder/face prominent, personal brand, trust through human connection',
+  'ingredient_breakdown': 'Ingredients/components highlighted, deconstructed product view',
+  'behind_scenes': 'Factory, lab, or workspace — transparency and authenticity',
+  'packaging_hero': 'Packaging as hero, unboxing moment, retail-ready presentation',
+  'unboxing': 'Reveal moment, excitement of opening, gift-like presentation',
+  'text_typography': 'Text-dominant, bold typography, minimal imagery, statement piece',
+  'screenshot': 'App/dashboard screenshot, UI walkthrough, digital product preview',
+  'meme_native': 'Meme format, native social content, humor-driven, shareable',
+  'split_screen': 'Side-by-side comparison, before/after split, A vs B format',
+  'before_after': 'Transformation shot, dramatic before/after, progress visualization',
+  'social_proof_stack': 'Testimonial collage, review screenshots, star ratings, trust badges',
+  'problem_visualization': 'Visual representation of the problem/pain point the product solves',
+  'curiosity_gap': 'Intriguing partial reveal, blurred/hidden element, "what is this?" hook',
+  'urgency_scarcity': 'Countdown timers, "almost gone" visuals, limited edition markers',
+  'lego_brick': 'LEGO/brick-style recreation of product or scene, toy-like aesthetic',
+  'claymation': 'Clay/plasticine stop-motion style, handcrafted 3D texture',
+  'wobble_jelly': 'Wobble/jelly physics animation style, bouncy, playful motion',
+  'crayon_drawing': 'Kid\'s crayon drawing style, childlike innocence, handmade charm',
+  'whiteboard': 'Whiteboard sketch, marker-drawn explainer, educational feel',
+  'paper_cutout': 'Paper cutout/collage, layered textures, scrapbook aesthetic',
+  'pixel_art': 'Pixel art/8-bit retro game style, nostalgic, digital craft',
+  'watercolor': 'Watercolor painting, soft washes, organic bleeding edges',
+  'chalkboard': 'Chalkboard/blackboard style, chalk-drawn, educational setting',
+  'pop_art': 'Pop art/Warhol style, bold outlines, halftone dots, vibrant colors',
+  'neon_cyberpunk': 'Neon glow, cyberpunk aesthetic, dark with electric highlights',
+  'vintage_poster': 'Vintage propaganda poster, retro illustration, bold messaging',
+  'blueprint': 'Blueprint/technical drawing, engineering style, precise and detailed',
+  'embroidery': 'Embroidery/cross-stitch style, fabric texture, handcraft aesthetic',
+  'balloon_inflatable': 'Balloon/inflatable style, puffy 3D letters, playful and tactile',
+  'ice_sculpture': 'Ice sculpture, frozen crystalline forms, luxury and precision',
+  'food_art': 'Food art composition, edible arrangements, culinary creativity',
+  'miniature_tilt': 'Miniature/tilt-shift photography, tiny world, diorama feel',
+  'xray_see_through': 'X-ray/see-through effect, revealing internal structure',
+  'holographic': 'Holographic/iridescent, rainbow shimmer, futuristic material',
+  'origami': 'Origami/paper fold, geometric precision, Japanese craft aesthetic',
+  'stained_glass': 'Stained glass window, rich jewel tones, light filtering through',
+  'mosaic': 'Mosaic/tile pattern, tessellation, fragmented beauty',
+  'sand_sculpture': 'Sand sculpture, beach art, ephemeral natural medium',
+  'cloud_smoke': 'Cloud/smoke formation, ethereal shapes, dreamlike atmosphere'
 };
 
 // ============================================================
@@ -184,14 +295,32 @@ export default async function handler(req, res) {
         ? `Awareness Level: ${awareness_level}\nGuidance: ${AWARENESS_LEVELS[awareness_level]}`
         : 'Default to problem-aware level';
 
-      const copyPrompt = `You are an elite Meta Ads copywriter who has spent $100M+ on Facebook/Instagram ads. Generate ${num_variations || 3} ad copy variations.
+      // Build cognitive bias context for ad copy
+      const biasContext = cognitive_biases?.length > 0
+        ? `\n## COGNITIVE BIASES TO WEAVE INTO COPY\n${cognitive_biases.map(b => `- **${b}**: ${COGNITIVE_BIASES[b] || b}`).join('\n')}\n\nYou MUST strategically apply these biases in your copy. The hook should leverage 1-2 biases. The body should weave in all remaining biases naturally. Each bias should serve the persuasion arc, not feel forced.\n`
+        : '';
+
+      const copyPrompt = `You are a world-class direct response copywriter with deep expertise in behavioral psychology, cognitive biases, and persuasion science. You've studied the work of Gary Halbert, Eugene Schwartz, Joe Sugarman, Gary Bencivenga, and David Ogilvy. You understand that great advertising is not about features — it's about triggering emotional and cognitive responses that make action feel inevitable.
+
+Generate ${num_variations || 3} ad copy variations that demonstrate mastery of:
+1. **Cognitive bias application** — Every line should serve a psychological purpose
+2. **Emotional specificity** — Not "feel better" but "feel the energy you had at 25 when you could play with your kids without getting winded"
+3. **Pattern interrupts** — The scroll must stop. Use unexpected angles, counterintuitive openings, or curiosity gaps.
+4. **Narrative micro-arcs** — Even in 125 words, tell a story: tension → insight → resolution → action
 
 ## Client/Brand
 ${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided - use professional defaults'}
 
-## Audience & Awareness
+## Audience & Awareness Psychology
 - Target Audience: ${target_audience || 'Not specified'}
 - ${awarenessInfo}
+
+IMPORTANT AWARENESS CONTEXT:
+- **Unaware**: They don't know they have a problem. You need a pattern interrupt — something that makes them realize "wait, that's me." Never mention the product directly. Lead with the problem disguised as a story or surprising fact.
+- **Problem Aware**: They feel the pain but don't know solutions exist. Amplify their frustration with vivid, specific language. Paint their daily struggle. Then hint at a way out.
+- **Solution Aware**: They know solutions exist but haven't chosen yours. Lead with your UNIQUE MECHANISM — what makes your approach fundamentally different. Use comparison and contrast biases.
+- **Product Aware**: They know about you but haven't committed. Stack social proof, eliminate objections, show transformation stories from people just like them.
+- **Most Aware**: They're ready, just need the final push. Lead with the offer, urgency, guarantee. Make inaction feel costly.
 
 ## Requirements
 - Ad Type: ${ad_type || 'single_image'}
@@ -207,23 +336,35 @@ ${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided -
 - Format: ${platformGuide.format_notes}
 
 ${triggerContext}
+${biasContext}
+
+## ADVANCED COPY PRINCIPLES (apply throughout)
+
+### Hook Mastery
+- The first line has ONE job: make them read the second line
+- Use "fascination" techniques: specific numbers, unexpected claims, identity-based opening
+- Examples of elite hooks: "The $4.2 billion mistake 97% of women make before breakfast" / "My cardiologist said this was impossible. Then I showed him my labs."
+
+### Body Copy Architecture
+- Each paragraph should create a "slippery slide" (Joe Sugarman) — impossible to stop reading
+- Use the "bucket brigade" technique: short transitional phrases that maintain momentum ("Here's the thing...", "But here's where it gets interesting...", "And the best part?")
+- Alternate between emotional and logical appeals (feel → think → feel → act)
+- Include at least one "specificity marker" per variation (exact number, date, percentage, or named entity)
+
+### CTA Psychology
+- The CTA should feel like the natural, inevitable next step — not a request
+- Frame the CTA around what they GET, not what they DO ("Get Your Free Guide" > "Download Now")
+- Add micro-urgency near the CTA without being slimy
 
 ## Output Format
 For each variation, provide:
-1. **Hook** (first line - must stop the scroll)
-2. **Primary Text** (full ad body)
-3. **Headline** (short, punchy)
-4. **Description** (supporting line)
-5. **CTA Text** (button text)
-6. **Triggers Used** (which psychological triggers from above were applied)
-
-Apply these direct response principles:
-- Open with the strongest possible hook
-- Use short paragraphs (1-2 sentences max)
-- Include specific numbers and results where possible
-- Create urgency without being sleazy
-- End with a clear, compelling CTA
-- Use pattern interrupts (line breaks, formatting)
+1. **Hook** (first line - must stop the scroll — apply your best hook framework)
+2. **Primary Text** (full ad body — apply biases, bucket brigades, emotional specificity)
+3. **Headline** (short, punchy, benefit-driven)
+4. **Description** (supporting line with proof or urgency)
+5. **CTA Text** (button text — action + benefit)
+6. **Triggers Used** (which specific cognitive biases and psychological triggers were applied)
+7. **Hook Framework** (which framework was used and why it's optimal for this awareness level)
 
 Respond in this JSON format:
 {
@@ -261,36 +402,72 @@ Respond in this JSON format:
         : 'Use problem-aware level by default';
 
       const biasInfo = cognitive_biases?.length > 0
-        ? `Cognitive Biases to Apply:\n${cognitive_biases.map(b => `- ${b}: ${COGNITIVE_BIASES[b] || b}`).join('\n')}`
+        ? `## COGNITIVE BIASES TO ENCODE VISUALLY\n${cognitive_biases.map(b => `- **${b}**: ${COGNITIVE_BIASES[b] || b}`).join('\n')}\n\nEach prompt MUST visually encode at least 2-3 of these biases. For example:\n- "social_proof" → show crowds, groups of happy users, testimonial-style layouts, user count badges\n- "scarcity" → visual timers, "almost gone" visual cues, single item on empty shelf\n- "authority" → lab coats, clinical settings, university crests, microscopes\n- "contrast_effect" → split composition showing the bad alternative vs the good one\n- "curiosity_gap" → partially hidden or blurred elements that create visual intrigue\n- "endowment" → person already using/enjoying the product, ownership cues\n- "loss_aversion" → before/without imagery showing what they'd miss\n`
         : '';
 
-      const imagePrompt = `You are an expert at creating AI image generation prompts for Meta Ads. Generate ${num_prompts || 3} image prompts.
+      // Build style descriptions
+      const styleDescriptions = ad_styles?.length > 0
+        ? `## VISUAL STYLES TO USE\n${ad_styles.map(s => `- **${s}**: ${AD_STYLES[s] || s}`).join('\n')}\n\nEach prompt should be crafted in one of these specific visual styles. Distribute them across prompts for variety.`
+        : '';
+
+      const imagePrompt = `You are a world-class creative director and AI image prompt engineer who understands both visual psychology and Meta advertising performance science. You specialize in creating image prompts that:
+1. Stop the scroll in under 0.3 seconds
+2. Encode cognitive biases into visual elements
+3. Match the audience's awareness level with the right visual strategy
+4. Produce images that feel native to the platform (not stock-photo-generic)
+
+Generate ${num_prompts || 5} highly detailed image prompts.
 
 ## Client/Brand
 ${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided'}
 
-## Settings
+## Awareness Level Strategy
 ${awarenessInfo}
-${biasInfo}
-- Ad Styles: ${ad_styles?.join(', ') || 'Not specified'}
-- Aspect Ratio: ${aspect_ratio || '4:5'}
-${custom_concept ? `- Custom Concept: ${custom_concept}` : ''}
 
-## Requirements for Each Prompt
-1. Highly specific and detailed (50-100 words)
-2. Include: subject, setting, mood, lighting, camera angle, style
-3. Optimized for the specified aspect ratio
-4. Designed to stop the scroll on Meta platforms
-5. Apply the cognitive biases visually
-6. Match the awareness level (unaware = pattern interrupt, most_aware = product focus)
+VISUAL STRATEGY BY AWARENESS:
+- **Unaware**: Pattern interrupt visuals. Unexpected juxtapositions, optical illusions, "wait what?" moments. The image alone must stop the scroll. NO product shots.
+- **Problem Aware**: Pain visualization. Show the frustration, the mess, the struggle — make them FEEL their problem through the image. Empathy-driven compositions.
+- **Solution Aware**: Unique mechanism visualization. Show HOW your solution works differently. Process shots, infographic-style elements, "inside look" compositions.
+- **Product Aware**: Social proof and transformation. Before/after, testimonial-style, group of happy users, results visualization.
+- **Most Aware**: Product hero + urgency cues. Beautiful product photography with "limited" or "exclusive" visual markers. Premium feel.
+
+${biasInfo}
+${styleDescriptions}
+
+## Technical Specifications
+- Aspect Ratio: ${aspect_ratio || '4:5'} — compose specifically for this frame
+- Platform: Meta (Facebook/Instagram) — mobile-first viewing
+${custom_concept ? `- Custom Creative Direction: ${custom_concept}` : ''}
+
+## PROMPT ENGINEERING REQUIREMENTS
+Each prompt must be 80-150 words and include ALL of these elements:
+1. **Subject** — What is the main element? Be hyper-specific (not "a woman" but "a 35-year-old woman with tired eyes and messy bun looking at her phone at 2am")
+2. **Setting/Environment** — Where? Be specific about the space, background, and atmospheric elements
+3. **Lighting** — Exact lighting setup (golden hour, harsh fluorescent, soft box, rim light, etc.)
+4. **Camera/Composition** — Angle, lens (85mm portrait, wide angle, macro), depth of field, rule of thirds placement
+5. **Color Palette** — Dominant and accent colors, mood they create
+6. **Mood/Emotion** — The feeling the viewer should get in 0.3 seconds
+7. **Cognitive Bias Encoding** — Which biases are embedded visually and HOW
+8. **Scroll-Stop Element** — The ONE thing that makes someone pause mid-scroll
+9. **Style Direction** — The specific visual style (from the styles list above if provided)
+
+## NEGATIVE CONSTRAINTS
+- No generic stock photography vibes
+- No cliché corporate imagery (handshakes, arrows going up, etc.)
+- No text in the image (text overlay is added later)
+- Avoid oversaturated/HDR look
+- No AI-obvious artifacts (extra fingers, melting faces, etc.)
 
 Respond in JSON:
 {
   "prompts": [
     {
-      "concept": "Brief concept description",
-      "prompt": "Full detailed image prompt...",
-      "rationale": "Why this works for the target audience"
+      "concept": "Brief 5-word concept",
+      "prompt": "Full detailed image generation prompt (80-150 words)...",
+      "style": "Which visual style this uses",
+      "biases_encoded": ["bias_key1", "bias_key2"],
+      "scroll_stop_element": "What makes someone pause",
+      "rationale": "Psychological reasoning for why this image works for this awareness level and audience"
     }
   ]
 }`;
@@ -324,7 +501,11 @@ Respond in JSON:
         triggersPerEmail.push({ level, triggers: emailTriggers.map(t => t.name) });
       }
 
-      const emailPrompt = `You are a world-class email copywriter specializing in ${seqType} sequences. Generate a ${seqLength}-email sequence.
+      const emailPrompt = `You are a master email sequence architect who combines direct response copywriting with behavioral psychology. You understand the Todd Brown "Unique Mechanism" framework, the Frank Kern "Results In Advance" method, and the Ryan Deiss "Invisible Selling Machine" architecture.
+
+Every email must serve a dual purpose: deliver genuine value AND advance the reader one step closer to conversion. No email should feel like pure selling.
+
+Generate a ${seqLength}-email sequence.
 
 ## Client/Brand
 ${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided'}
@@ -341,12 +522,35 @@ ${product_info ? `- Product Info: ${product_info}` : ''}
 ## Awareness Level Progression (per email)
 ${triggersPerEmail.map((e, i) => `Email ${i + 1}: ${e.level} → Triggers: ${e.triggers.join(', ')}`).join('\n')}
 
-## Sequence Type Guidelines
-${seqType === 'lead-nurture' ? 'Build trust and educate. Each email delivers value. Soft sell in emails 3+.' : ''}
-${seqType === 'sales-funnel' ? 'Progressive urgency. Problem → Solution → Proof → Offer → Deadline.' : ''}
-${seqType === 'educational' ? 'Teach while positioning product. Each email teaches one concept that links to product benefits.' : ''}
-${seqType === 'launch' ? 'Build anticipation. Teaser → Value → Social proof → Cart open → Last chance.' : ''}
-${seqType === 'abandoned-cart' ? 'Reminder → Objection handling → Urgency → Final offer with bonus/discount.' : ''}
+## SEQUENCE TYPE DEEP STRATEGY
+${seqType === 'lead-nurture' ? `LEAD NURTURE ARCHITECTURE:
+- Email 1: "Welcome + Quick Win" — Deliver the lead magnet promise + one actionable insight. Use reciprocity bias.
+- Email 2: "The Backstory" — Share the origin story. Why does this brand/product exist? Use liking and authenticity.
+- Email 3: "The Mistake" — Reveal the #1 mistake the audience is making. Use authority + curiosity gap.
+- Email 4: "The Proof" — Case study or transformation story. Specific numbers. Use social proof + survivorship.
+- Email 5+: "The Bridge" — Connect their problem to your solution as the logical next step. Soft CTA.` : ''}
+${seqType === 'sales-funnel' ? `SALES FUNNEL ARCHITECTURE:
+- Email 1: "The Hook" — Open with the most compelling version of their problem. Use loss aversion.
+- Email 2: "The Agitate" — Deepen the pain. Show the real cost of inaction with specifics. Use regret aversion.
+- Email 3: "The Solution" — Introduce the unique mechanism. Why THIS approach is different. Use authority + contrast.
+- Email 4: "The Proof" — Stack social proof: testimonials, data, expert endorsements. Use bandwagon.
+- Email 5+: "The Close" — Urgency + guarantee + final objection handling. Use scarcity + zero risk.` : ''}
+${seqType === 'educational' ? `EDUCATIONAL ARCHITECTURE:
+- Each email teaches ONE concept that naturally leads to the product
+- Use the "Teach → Apply → Connect" framework: teach the concept, show how to apply it, then reveal how the product makes it easier/better
+- Include actionable takeaways in every email (not just theory)
+- Build the "Unique Mechanism" story across emails — by the end, the reader should understand WHY your approach is fundamentally different` : ''}
+${seqType === 'launch' ? `LAUNCH ARCHITECTURE:
+- Pre-launch: Build anticipation with "something big is coming" + behind-the-scenes content
+- Value bombs: Deliver 2-3 pieces of genuinely useful content that demonstrate expertise
+- Social proof: Share early access results, beta tester feedback, expert endorsements
+- Cart open: Full pitch with bonuses, guarantee, and clear value proposition
+- Final push: Urgency (real deadline), FAQ/objection handling, "last chance" with countdown` : ''}
+${seqType === 'abandoned-cart' ? `ABANDONED CART ARCHITECTURE:
+- Email 1 (1hr): Gentle reminder — "Did you forget something?" + product image. No pressure.
+- Email 2 (24hr): Objection handling — Address the #1 reason people don't buy. Use zero_risk + testimonials.
+- Email 3 (48hr): Urgency — "Your cart is expiring" + social proof of recent purchases.
+- Email 4 (72hr): Final offer — Small discount or bonus to close the deal. "Last chance" framing.` : ''}
 
 ## Output Format
 Return JSON:

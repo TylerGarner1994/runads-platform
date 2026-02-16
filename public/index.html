@@ -1428,89 +1428,273 @@ ${(client.valuePropositions || []).map(vp => `<li style="padding:8px 0;border-bo
 </div>
 <div id="brand-guide-tab" class="tab-content hidden">
 <div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
-<h3 style="font-size:18px;font-weight:700;margin-bottom:24px;">Brand Colors</h3>
-<div class="three-column" style="margin-bottom:32px;">
+<!-- COLOR PALETTE (5 colors like Unicorn) -->
+<h3 style="font-size:18px;font-weight:700;margin-bottom:16px;">Color Palette</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:32px;">
+<div class="form-group" style="text-align:center;">
+<label style="font-size:12px;">Primary</label>
+<input type="color" id="colorPrimary" value="${client.style_guide?.colors?.primary || '#2563eb'}" style="width:100%;height:48px;border:none;border-radius:8px;cursor:pointer;">
+<input type="text" id="colorPrimaryHex" value="${client.style_guide?.colors?.primary || '#2563eb'}" style="margin-top:4px;font-size:11px;text-align:center;padding:4px;border:1px solid #e2e8f0;border-radius:4px;width:100%;">
+</div>
+<div class="form-group" style="text-align:center;">
+<label style="font-size:12px;">Secondary</label>
+<input type="color" id="colorSecondary" value="${client.style_guide?.colors?.secondary || '#10b981'}" style="width:100%;height:48px;border:none;border-radius:8px;cursor:pointer;">
+<input type="text" id="colorSecondaryHex" value="${client.style_guide?.colors?.secondary || '#10b981'}" style="margin-top:4px;font-size:11px;text-align:center;padding:4px;border:1px solid #e2e8f0;border-radius:4px;width:100%;">
+</div>
+<div class="form-group" style="text-align:center;">
+<label style="font-size:12px;">Accent</label>
+<input type="color" id="colorAccent" value="${client.style_guide?.colors?.accent || '#f59e0b'}" style="width:100%;height:48px;border:none;border-radius:8px;cursor:pointer;">
+<input type="text" id="colorAccentHex" value="${client.style_guide?.colors?.accent || '#f59e0b'}" style="margin-top:4px;font-size:11px;text-align:center;padding:4px;border:1px solid #e2e8f0;border-radius:4px;width:100%;">
+</div>
+<div class="form-group" style="text-align:center;">
+<label style="font-size:12px;">Background</label>
+<input type="color" id="colorBackground" value="${client.style_guide?.colors?.background || '#ffffff'}" style="width:100%;height:48px;border:none;border-radius:8px;cursor:pointer;">
+<input type="text" id="colorBackgroundHex" value="${client.style_guide?.colors?.background || '#ffffff'}" style="margin-top:4px;font-size:11px;text-align:center;padding:4px;border:1px solid #e2e8f0;border-radius:4px;width:100%;">
+</div>
+<div class="form-group" style="text-align:center;">
+<label style="font-size:12px;">Text</label>
+<input type="color" id="colorText" value="${client.style_guide?.colors?.text || '#1e293b'}" style="width:100%;height:48px;border:none;border-radius:8px;cursor:pointer;">
+<input type="text" id="colorTextHex" value="${client.style_guide?.colors?.text || '#1e293b'}" style="margin-top:4px;font-size:11px;text-align:center;padding:4px;border:1px solid #e2e8f0;border-radius:4px;width:100%;">
+</div>
+</div>
+
+<!-- TYPOGRAPHY -->
+<h3 style="font-size:18px;font-weight:700;margin-bottom:16px;">Typography</h3>
+<div class="two-column" style="margin-bottom:16px;">
 <div class="form-group">
-<label>Primary Color</label>
-<div class="color-input-group">
-<input type="color" id="colorPrimary" value="${client.brandGuide?.primaryColor || '#2563eb'}">
-<input type="text" value="${client.brandGuide?.primaryColor || '#2563eb'}" readonly style="flex:1;">
-</div>
-</div>
-<div class="form-group">
-<label>Secondary Color</label>
-<div class="color-input-group">
-<input type="color" id="colorSecondary" value="${client.brandGuide?.secondaryColor || '#10b981'}">
-<input type="text" value="${client.brandGuide?.secondaryColor || '#10b981'}" readonly>
-</div>
-</div>
-<div class="form-group">
-<label>Accent Color</label>
-<div class="color-input-group">
-<input type="color" id="colorAccent" value="${client.brandGuide?.accentColor || '#f59e0b'}">
-<input type="text" value="${client.brandGuide?.accentColor || '#f59e0b'}" readonly>
-</div>
-</div>
-</div>
-<h3 style="font-size:18px;font-weight:700;margin-bottom:24px;margin-top:32px;">Typography & Layout</h3>
-<div class="two-column" style="margin-bottom:32px;">
-<div class="form-group">
-<label>Primary Font</label>
-<select>
-<option>Inter</option>
-<option>Roboto</option>
-<option>Playfair Display</option>
-<option>Poppins</option>
+<label>Heading Font</label>
+<select id="bgHeadingFont">
+<option ${client.style_guide?.typography?.headingFont === 'Inter' ? 'selected':''}>Inter</option>
+<option ${client.style_guide?.typography?.headingFont === 'Playfair Display' ? 'selected':''}>Playfair Display</option>
+<option ${client.style_guide?.typography?.headingFont === 'Poppins' ? 'selected':''}>Poppins</option>
+<option ${client.style_guide?.typography?.headingFont === 'Roboto' ? 'selected':''}>Roboto</option>
+<option ${client.style_guide?.typography?.headingFont === 'Lora' ? 'selected':''}>Lora</option>
+<option ${client.style_guide?.typography?.headingFont === 'Montserrat' ? 'selected':''}>Montserrat</option>
+<option ${client.style_guide?.typography?.headingFont === 'Georgia' ? 'selected':''}>Georgia</option>
+<option ${client.style_guide?.typography?.headingFont === 'Source Serif Pro' ? 'selected':''}>Source Serif Pro</option>
 </select>
+<div id="headingFontPreview" style="margin-top:8px;font-size:22px;font-weight:700;color:#1e293b;padding:12px;background:#f8fafc;border-radius:6px;">The Quick Brown Fox</div>
 </div>
+<div class="form-group">
+<label>Body Font</label>
+<select id="bgBodyFont">
+<option ${client.style_guide?.typography?.bodyFont === 'Inter' ? 'selected':''}>Inter</option>
+<option ${client.style_guide?.typography?.bodyFont === 'Roboto' ? 'selected':''}>Roboto</option>
+<option ${client.style_guide?.typography?.bodyFont === 'Open Sans' ? 'selected':''}>Open Sans</option>
+<option ${client.style_guide?.typography?.bodyFont === 'Lato' ? 'selected':''}>Lato</option>
+<option ${client.style_guide?.typography?.bodyFont === 'Nunito' ? 'selected':''}>Nunito</option>
+<option ${client.style_guide?.typography?.bodyFont === 'Georgia' ? 'selected':''}>Georgia</option>
+<option ${client.style_guide?.typography?.bodyFont === 'Source Sans Pro' ? 'selected':''}>Source Sans Pro</option>
+</select>
+<div id="bodyFontPreview" style="margin-top:8px;font-size:14px;line-height:1.6;color:#475569;padding:12px;background:#f8fafc;border-radius:6px;">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.</div>
+</div>
+</div>
+
+<!-- SPACING & LAYOUT -->
+<h3 style="font-size:18px;font-weight:700;margin-bottom:16px;margin-top:24px;">Spacing & Layout</h3>
+<div class="three-column" style="margin-bottom:16px;">
 <div class="form-group">
 <label>Border Radius</label>
-<select>
-<option>4px (Sharp)</option>
-<option>8px (Rounded)</option>
-<option>12px (Smooth)</option>
-<option>20px (Very Round)</option>
+<select id="bgBorderRadius">
+<option value="0" ${client.style_guide?.layout?.borderRadius === '0' ? 'selected':''}>0px (Sharp)</option>
+<option value="4" ${client.style_guide?.layout?.borderRadius === '4' ? 'selected':''}>4px (Subtle)</option>
+<option value="8" ${(client.style_guide?.layout?.borderRadius === '8' || !client.style_guide?.layout?.borderRadius) ? 'selected':''}>8px (Rounded)</option>
+<option value="12" ${client.style_guide?.layout?.borderRadius === '12' ? 'selected':''}>12px (Smooth)</option>
+<option value="20" ${client.style_guide?.layout?.borderRadius === '20' ? 'selected':''}>20px (Pill)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Spacing Unit</label>
+<select id="bgSpacingUnit">
+<option value="4" ${client.style_guide?.layout?.spacingUnit === '4' ? 'selected':''}>Compact (4px base)</option>
+<option value="8" ${(client.style_guide?.layout?.spacingUnit === '8' || !client.style_guide?.layout?.spacingUnit) ? 'selected':''}>Standard (8px base)</option>
+<option value="12" ${client.style_guide?.layout?.spacingUnit === '12' ? 'selected':''}>Spacious (12px base)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Max Width</label>
+<select id="bgMaxWidth">
+<option value="680" ${client.style_guide?.layout?.maxWidth === '680' ? 'selected':''}>680px (Narrow)</option>
+<option value="800" ${(client.style_guide?.layout?.maxWidth === '800' || !client.style_guide?.layout?.maxWidth) ? 'selected':''}>800px (Standard)</option>
+<option value="960" ${client.style_guide?.layout?.maxWidth === '960' ? 'selected':''}>960px (Wide)</option>
+<option value="1100" ${client.style_guide?.layout?.maxWidth === '1100' ? 'selected':''}>1100px (Full)</option>
 </select>
 </div>
 </div>
-<button class="btn btn-primary" onclick="saveBrandGuide('${client.id}')">Save Brand Guide</button>
+
+<!-- BUTTON STYLES -->
+<h3 style="font-size:18px;font-weight:700;margin-bottom:16px;margin-top:24px;">Button Styles</h3>
+<div class="two-column" style="margin-bottom:16px;">
+<div class="form-group">
+<label>Button Shape</label>
+<select id="bgButtonShape">
+<option value="sharp" ${client.style_guide?.buttons?.shape === 'sharp' ? 'selected':''}>Sharp Corners</option>
+<option value="rounded" ${(client.style_guide?.buttons?.shape === 'rounded' || !client.style_guide?.buttons?.shape) ? 'selected':''}>Rounded</option>
+<option value="pill" ${client.style_guide?.buttons?.shape === 'pill' ? 'selected':''}>Pill Shape</option>
+</select>
+</div>
+<div class="form-group">
+<label>Button Style</label>
+<select id="bgButtonStyle">
+<option value="solid" ${(client.style_guide?.buttons?.style === 'solid' || !client.style_guide?.buttons?.style) ? 'selected':''}>Solid Fill</option>
+<option value="gradient" ${client.style_guide?.buttons?.style === 'gradient' ? 'selected':''}>Gradient</option>
+<option value="outline" ${client.style_guide?.buttons?.style === 'outline' ? 'selected':''}>Outline</option>
+<option value="shadow" ${client.style_guide?.buttons?.style === 'shadow' ? 'selected':''}>Solid + Shadow</option>
+</select>
+</div>
+</div>
+<div id="buttonPreview" style="padding:16px;background:#f8fafc;border-radius:8px;margin-bottom:24px;text-align:center;">
+<button style="padding:12px 32px;font-size:15px;font-weight:600;color:#fff;background:${client.style_guide?.colors?.primary || '#2563eb'};border:none;border-radius:8px;cursor:pointer;">Preview CTA Button</button>
+</div>
+
+<!-- BRAND VOICE -->
+<h3 style="font-size:18px;font-weight:700;margin-bottom:16px;margin-top:24px;">Brand Voice</h3>
+<div class="form-group">
+<label>Voice Tone</label>
+<select id="bgVoiceTone">
+<option value="professional" ${(client.style_guide?.voice?.tone === 'professional' || !client.style_guide?.voice?.tone) ? 'selected':''}>Professional & Authoritative</option>
+<option value="friendly" ${client.style_guide?.voice?.tone === 'friendly' ? 'selected':''}>Warm & Friendly</option>
+<option value="edgy" ${client.style_guide?.voice?.tone === 'edgy' ? 'selected':''}>Bold & Edgy</option>
+<option value="luxurious" ${client.style_guide?.voice?.tone === 'luxurious' ? 'selected':''}>Premium & Luxurious</option>
+<option value="playful" ${client.style_guide?.voice?.tone === 'playful' ? 'selected':''}>Fun & Playful</option>
+<option value="scientific" ${client.style_guide?.voice?.tone === 'scientific' ? 'selected':''}>Scientific & Evidence-Based</option>
+</select>
+</div>
+<div class="form-group">
+<label>Brand Keywords (comma-separated)</label>
+<input type="text" id="bgBrandKeywords" placeholder="natural, premium, Australian, organic..." value="${client.style_guide?.voice?.keywords || ''}">
+</div>
+
+<button class="btn btn-primary" onclick="saveBrandGuide('${client.id}')" style="margin-top:16px;">Save Brand Guide</button>
 </div>
 </div>
 <div id="research-tab" class="tab-content hidden">
-<div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+<!-- Company Overview -->
+<div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:16px;">
+<h3 style="font-size:16px;font-weight:700;margin-bottom:16px;">Company Overview</h3>
+<div class="two-column">
 <div class="form-group">
 <label>Company Name</label>
-<input type="text" value="${client.companyName || ''}" readonly>
+<input type="text" id="resCompanyName" value="${client.name || ''}" onchange="updateResearch('${client.id}')">
 </div>
 <div class="form-group">
 <label>Industry</label>
-<input type="text" value="${client.industry || ''}" readonly>
+<input type="text" id="resIndustry" value="${client.industry || ''}" onchange="updateResearch('${client.id}')">
+</div>
 </div>
 <div class="form-group">
 <label>Tagline</label>
-<input type="text" value="${client.tagline || ''}" readonly>
+<input type="text" id="resTagline" value="${client.tagline || ''}" onchange="updateResearch('${client.id}')">
 </div>
 <div class="form-group">
-<label>Brand Voice</label>
-<input type="text" value="${client.brandVoice || ''}" readonly>
+<label>Value Propositions (one per line)</label>
+<textarea id="resValueProps" rows="3" onchange="updateResearch('${client.id}')">${(client.valuePropositions || []).join('\n')}</textarea>
 </div>
 <div class="form-group">
-<label>Products/Services</label>
-<textarea readonly>${(client.products || []).join('\n')}</textarea>
+<label>Brand Voice Description</label>
+<textarea id="resBrandVoice" rows="2" placeholder="e.g., We speak like a knowledgeable friend — warm, evidence-based, never preachy..." onchange="updateResearch('${client.id}')">${client.brandVoice || ''}</textarea>
+</div>
+<div class="form-group">
+<label>Unique Differentiators (one per line)</label>
+<textarea id="resDifferentiators" rows="3" placeholder="What makes this brand fundamentally different from competitors..." onchange="updateResearch('${client.id}')">${(client.differentiators || []).join('\n')}</textarea>
+</div>
+</div>
+
+<!-- Products / Services -->
+<div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<h3 style="font-size:16px;font-weight:700;">Products / Services</h3>
+<button class="btn btn-primary btn-small" onclick="addProduct('${client.id}')">+ Add Product</button>
+</div>
+<div id="productsList">
+${(client.products || []).map((p, i) => `
+<div class="product-card" style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;">
+<div style="display:flex;justify-content:space-between;align-items:start;">
+<div style="flex:1;">
+<div style="font-weight:600;font-size:15px;margin-bottom:4px;">${typeof p === 'string' ? p : p.name || 'Unnamed'}</div>
+${typeof p === 'object' ? `
+<div style="font-size:13px;color:#6b7280;margin-bottom:6px;">${p.description || ''}</div>
+<div style="display:flex;gap:12px;">
+${p.price ? `<span style="font-size:13px;font-weight:600;color:#10b981;">$${p.price}</span>` : ''}
+${p.features ? `<span style="font-size:12px;color:#64748b;">${(Array.isArray(p.features) ? p.features : []).join(', ')}</span>` : ''}
+</div>
+` : ''}
+</div>
+<button onclick="removeProduct('${client.id}', ${i})" style="padding:4px 8px;background:none;border:1px solid #fecaca;border-radius:4px;color:#ef4444;font-size:11px;cursor:pointer;">Remove</button>
+</div>
+</div>
+`).join('')}
+${(!client.products || client.products.length === 0) ? '<div style="text-align:center;padding:24px;color:#9ca3af;font-size:13px;">No products added yet</div>' : ''}
+</div>
+</div>
+
+<!-- Target Audiences -->
+<div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<h3 style="font-size:16px;font-weight:700;">Target Audiences</h3>
+<button class="btn btn-primary btn-small" onclick="addAudience('${client.id}')">+ Add Audience</button>
+</div>
+<div id="audiencesList">
+${(client.audiences || []).map((a, i) => `
+<div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;">
+<div style="display:flex;justify-content:space-between;align-items:start;">
+<div style="flex:1;">
+<div style="font-weight:600;font-size:15px;margin-bottom:4px;">${a.name || 'Unnamed Audience'}</div>
+<div style="font-size:13px;color:#6b7280;margin-bottom:8px;">${a.description || ''}</div>
+${a.painPoints ? `
+<div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:4px;">Pain Points:</div>
+<div style="display:flex;flex-wrap:wrap;gap:4px;">
+${(Array.isArray(a.painPoints) ? a.painPoints : []).map(pp => `<span style="padding:2px 8px;background:#fef2f2;color:#991b1b;border-radius:10px;font-size:11px;">${pp}</span>`).join('')}
+</div>
+` : ''}
+</div>
+<button onclick="removeAudience('${client.id}', ${i})" style="padding:4px 8px;background:none;border:1px solid #fecaca;border-radius:4px;color:#ef4444;font-size:11px;cursor:pointer;">Remove</button>
+</div>
+</div>
+`).join('')}
+${(!client.audiences || client.audiences.length === 0) ? '<div style="text-align:center;padding:24px;color:#9ca3af;font-size:13px;">No target audiences defined yet</div>' : ''}
 </div>
 </div>
 </div>
 <div id="verified-facts-tab" class="tab-content hidden">
 <div style="background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
-<button class="btn btn-primary" style="margin-bottom:24px;">+ Add Fact</button>
-<div id="factsList">
-${(client.verifiedFacts || []).map(fact => `
-<div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;">
-<div style="font-weight:600;margin-bottom:4px;">${fact.claim}</div>
-<div style="font-size:13px;color:#6b7280;">${fact.source}</div>
-<span class="badge badge-gray" style="margin-top:8px;">${fact.category}</span>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<div>
+<h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Verified Claims & Facts</h3>
+<p style="font-size:13px;color:#6b7280;">Real, verified data that feeds into your page and ad generation for authentic, trustworthy outputs.</p>
 </div>
-`).join('')}
+<div style="display:flex;gap:8px;">
+<button class="btn btn-secondary btn-small" onclick="scrapeVerifiedClaims('${client.id}')">Scrape from Website</button>
+<button class="btn btn-primary btn-small" onclick="addVerifiedClaim('${client.id}')">+ Add Manually</button>
+</div>
+</div>
+<!-- Filter Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:16px;">
+<button onclick="filterClaims('all')" class="claim-filter active" style="padding:4px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#f1f5f9;font-size:12px;font-weight:500;cursor:pointer;">All</button>
+<button onclick="filterClaims('CLAIM')" class="claim-filter" style="padding:4px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Claims</button>
+<button onclick="filterClaims('TESTIMONIAL')" class="claim-filter" style="padding:4px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Testimonials</button>
+<button onclick="filterClaims('STATISTIC')" class="claim-filter" style="padding:4px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Statistics</button>
+</div>
+<div id="claimsList">
+${(client.claims || []).map((claim, i) => {
+const catColors = { 'CLAIM': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }, 'TESTIMONIAL': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }, 'STATISTIC': { bg: '#faf5ff', color: '#7c3aed', border: '#ddd6fe' } };
+const cc = catColors[claim.category] || catColors['CLAIM'];
+return \`
+<div class="claim-item" data-category="\${claim.category || 'CLAIM'}" style="padding:16px;border:1px solid \${cc.border};border-radius:8px;margin-bottom:10px;background:\${cc.bg};">
+<div style="display:flex;justify-content:space-between;align-items:start;">
+<div style="flex:1;">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+<span style="padding:2px 8px;background:\${cc.color};color:#fff;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;">\${claim.category || 'CLAIM'}</span>
+</div>
+<div style="font-weight:500;font-size:14px;line-height:1.5;color:#1e293b;">\${claim.text || claim.claim || ''}</div>
+\${claim.source ? \`<div style="font-size:12px;color:#64748b;margin-top:6px;">Source: <a href="\${claim.source}" target="_blank" style="color:\${cc.color};text-decoration:underline;">\${claim.source}</a></div>\` : ''}
+</div>
+<button onclick="removeClaim('\${client.id}', \${i})" style="padding:4px 8px;background:none;border:1px solid #fecaca;border-radius:4px;color:#ef4444;font-size:11px;cursor:pointer;flex-shrink:0;margin-left:12px;">Remove</button>
+</div>
+</div>
+\`;
+}).join('')}
+${(!client.claims || client.claims.length === 0) ? '<div style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;">No verified claims yet. Click "Scrape from Website" to auto-extract claims, or add them manually.</div>' : ''}
 </div>
 </div>
 </div>
@@ -1688,45 +1872,17 @@ ${app.clients.map(client => `
 </div>
 <div id="adStep3" class="ad-step hidden">
 <h2 style="margin-bottom:24px;font-size:20px;font-weight:700;">Configure Settings</h2>
-<!-- Common settings -->
-<div class="form-group">
-<label>Platform</label>
-<select id="adPlatform">
-<option value="facebook">Facebook</option>
-<option value="instagram">Instagram</option>
-<option value="linkedin">LinkedIn</option>
-<option value="tiktok">TikTok</option>
-<option value="google">Google Ads</option>
-</select>
-</div>
-<div class="form-group">
-<label>Awareness Level</label>
-<select id="adAwareness">
-<option value="problem_aware">Problem Aware</option>
-<option value="unaware">Unaware (Cold)</option>
-<option value="solution_aware">Solution Aware</option>
-<option value="product_aware">Product Aware</option>
-<option value="most_aware">Most Aware (Hot)</option>
-</select>
-</div>
-<div class="form-group">
-<label>Target Audience</label>
-<textarea id="adAudience" placeholder="Describe your target audience..."></textarea>
-</div>
-<div class="form-group">
-<label>Offer Details</label>
-<textarea id="adOffer" placeholder="What are you offering?"></textarea>
-</div>
-<!-- Copy-specific settings -->
+<!-- Ad Copy Settings -->
 <div id="adCopySettings">
+<h3 style="font-size:15px;font-weight:600;margin-bottom:16px;color:#475569;">Ad Copy Settings</h3>
 <div class="two-column">
 <div class="form-group">
 <label>Ad Type</label>
 <select id="adType">
-<option value="single">Single Image</option>
-<option value="carousel">Carousel</option>
-<option value="video">Video</option>
-<option value="story">Story</option>
+<option value="single">Single Image Ad</option>
+<option value="carousel">Carousel Ad</option>
+<option value="video">Video Ad</option>
+<option value="story">Story Ad</option>
 </select>
 </div>
 <div class="form-group">
@@ -1740,12 +1896,11 @@ ${app.clients.map(client => `
 </select>
 </div>
 </div>
-<div class="two-column">
 <div class="form-group">
 <label>Hook Framework</label>
 <select id="adHook">
 <option value="">Auto-select best...</option>
-<option value="problem-agitate-solution">PAS (Problem-Agitate-Solve)</option>
+<option value="problem-agitate-solution">Problem-Agitate-Solution</option>
 <option value="curiosity-gap">Curiosity Gap</option>
 <option value="contrarian">Contrarian</option>
 <option value="social-proof">Social Proof</option>
@@ -1758,14 +1913,88 @@ ${app.clients.map(client => `
 </select>
 </div>
 <div class="form-group">
-<label>Variations</label>
+<label>Target Audience (Optional)</label>
+<textarea id="adAudience" placeholder="Describe your ideal customer..."></textarea>
+</div>
+<div class="form-group">
+<label>Offer Details (Optional)</label>
+<input id="adOffer" placeholder="e.g., 20% off, Free shipping, etc." />
+</div>
+<div class="form-group">
+<label>Number of Variations</label>
 <select id="adVariations">
 <option value="3">3 variations</option>
-<option value="5">5 variations</option>
+<option value="5" selected>5 variations</option>
 <option value="10">10 variations</option>
 </select>
 </div>
 </div>
+<!-- Image Prompt Settings -->
+<div id="adImageSettings">
+<h3 style="font-size:15px;font-weight:600;margin:24px 0 16px;color:#475569;border-top:1px solid #e2e8f0;padding-top:24px;">Image Prompt Settings</h3>
+<div class="form-group">
+<label>Awareness Level</label>
+<select id="adAwareness">
+<option value="problem_aware">Problem Aware - Pain visualization</option>
+<option value="unaware">Unaware - Pattern interrupt, curiosity</option>
+<option value="solution_aware">Solution Aware - Differentiation</option>
+<option value="product_aware">Product Aware - Social proof</option>
+<option value="most_aware">Most Aware - Urgency, offer</option>
+</select>
+</div>
+<div class="form-group">
+<label>Cognitive Biases (Select 1-5)</label>
+<div id="biasGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;">
+</div>
+<div style="margin-top:8px;font-size:12px;color:#64748b;">Or use a Power Stack:</div>
+<div id="powerStacks" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+<button type="button" onclick="applyPowerStack('urgency')" class="power-stack-btn" style="padding:4px 12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Urgency</button>
+<button type="button" onclick="applyPowerStack('trust')" class="power-stack-btn" style="padding:4px 12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Trust</button>
+<button type="button" onclick="applyPowerStack('desire')" class="power-stack-btn" style="padding:4px 12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Desire</button>
+<button type="button" onclick="applyPowerStack('comparison')" class="power-stack-btn" style="padding:4px 12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Comparison</button>
+<button type="button" onclick="applyPowerStack('identity')" class="power-stack-btn" style="padding:4px 12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Identity</button>
+</div>
+</div>
+<div class="form-group">
+<label>Ad Styles (Select 1-5)</label>
+<div id="styleGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;">
+</div>
+</div>
+<div class="two-column">
+<div class="form-group">
+<label>Aspect Ratio</label>
+<select id="adAspectRatio">
+<option value="4:5">4:5 Vertical (Best for Feed)</option>
+<option value="1:1">1:1 Square</option>
+<option value="9:16">9:16 Stories/Reels</option>
+<option value="16:9">16:9 Landscape</option>
+<option value="1.91:1">1.91:1 Link Preview</option>
+</select>
+</div>
+<div class="form-group">
+<label>Number of Prompts</label>
+<select id="adNumPrompts">
+<option value="3">3 prompts</option>
+<option value="5" selected>5 prompts</option>
+<option value="10">10 prompts</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Custom Concept (Optional)</label>
+<textarea id="adCustomConcept" placeholder="Describe a specific ad image you want..."></textarea>
+</div>
+</div>
+<!-- Common platform -->
+<div class="form-group" style="margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;">
+<label>Platform</label>
+<select id="adPlatform">
+<option value="facebook">Facebook</option>
+<option value="instagram">Instagram</option>
+<option value="linkedin">LinkedIn</option>
+<option value="tiktok">TikTok</option>
+<option value="google">Google Ads</option>
+</select>
 </div>
 <!-- Email sequence settings -->
 <div id="adEmailSettings" style="display:none;">
@@ -1856,6 +2085,208 @@ stepIndicator.classList.remove('active');
 }
 }
 }
+// Populate grids when entering step 3
+if (stepNumber === 3) populateAdSettingsGrids();
+}
+
+// ============================================================
+// COGNITIVE BIAS & AD STYLE SELECTION GRIDS
+// ============================================================
+const BIAS_DATA = {
+  'loss_aversion': { label: 'Loss Aversion', icon: '😰', tip: 'Losses feel 2x stronger than gains' },
+  'sunk_cost': { label: 'Sunk Cost', icon: '💰', tip: 'Invested too much to quit now' },
+  'zero_risk': { label: 'Zero Risk', icon: '🛡️', tip: 'Eliminate all perceived risk' },
+  'regret_aversion': { label: 'Regret Aversion', icon: '😫', tip: 'Fear of future regret drives action' },
+  'endowment': { label: 'Endowment', icon: '🎁', tip: 'Feel ownership before buying' },
+  'social_proof': { label: 'Social Proof', icon: '👥', tip: 'Others doing it = must be good' },
+  'bandwagon': { label: 'Bandwagon', icon: '🚂', tip: 'Everyone\'s joining, don\'t miss out' },
+  'in_group': { label: 'In-Group', icon: '🤝', tip: 'Us vs them, belong to the smart group' },
+  'authority': { label: 'Authority', icon: '🔬', tip: 'Expert endorsements & data' },
+  'halo_effect': { label: 'Halo Effect', icon: '✨', tip: 'Associate with admired brands' },
+  'liking': { label: 'Liking', icon: '😊', tip: 'We buy from people we like' },
+  'anchoring': { label: 'Anchoring', icon: '⚓', tip: 'High reference price → deal feels amazing' },
+  'framing': { label: 'Framing', icon: '🖼️', tip: '95% success vs 5% failure' },
+  'availability_heuristic': { label: 'Availability', icon: '💭', tip: 'Vivid examples come to mind first' },
+  'representativeness': { label: 'Representativeness', icon: '🎯', tip: 'Ideal customer looks just like them' },
+  'default_effect': { label: 'Default Effect', icon: '✅', tip: 'Pre-select the best option' },
+  'mere_exposure': { label: 'Mere Exposure', icon: '🔄', tip: 'Familiarity breeds preference' },
+  'scarcity': { label: 'Scarcity', icon: '⏰', tip: 'Limited time/quantity = urgency' },
+  'curiosity_gap': { label: 'Curiosity Gap', icon: '🔍', tip: 'Tease without revealing' },
+  'ikea_effect': { label: 'IKEA Effect', icon: '🔧', tip: 'People value what they build' },
+  'reciprocity': { label: 'Reciprocity', icon: '🎁', tip: 'Give free value, then ask' },
+  'commitment_consistency': { label: 'Commitment', icon: '📝', tip: 'Small yes leads to big yes' },
+  'goal_gradient': { label: 'Goal Gradient', icon: '📊', tip: 'Almost there = push harder' },
+  'contrast_effect': { label: 'Contrast', icon: '⚖️', tip: 'Bad alternative makes yours shine' },
+  'decoy_effect': { label: 'Decoy Effect', icon: '🎯', tip: 'Third option makes target best' },
+  'von_restorff': { label: 'Isolation', icon: '💎', tip: 'Stand out = get remembered' },
+  'picture_superiority': { label: 'Picture Power', icon: '📸', tip: 'Images remembered 6x better' },
+  'rhyme_as_reason': { label: 'Rhyme/Reason', icon: '🎵', tip: 'Rhymes feel more true' },
+  'processing_fluency': { label: 'Fluency', icon: '🧊', tip: 'Simple = trustworthy' },
+  'ben_franklin': { label: 'Ben Franklin', icon: '🤔', tip: 'Do a favor → start liking them' },
+  'pratfall_effect': { label: 'Pratfall', icon: '😅', tip: 'Small flaw = more relatable' },
+  'peak_end_rule': { label: 'Peak-End', icon: '🏔️', tip: 'Best moment + ending = memory' },
+  'confirmation_bias': { label: 'Confirmation', icon: '🧠', tip: 'Affirm what they believe' },
+  'survivorship_bias': { label: 'Survivorship', icon: '🏆', tip: 'Spotlight success stories' }
+};
+
+const STYLE_DATA = {
+  'professional_studio': { label: 'Studio', icon: '📷' },
+  'lifestyle': { label: 'Lifestyle', icon: '🌿' },
+  'ugc_raw': { label: 'UGC Raw', icon: '📱' },
+  'flatlay': { label: 'Flat Lay', icon: '🔲' },
+  'minimalist': { label: 'Minimal', icon: '⬜' },
+  'maximalist': { label: 'Maximalist', icon: '🎨' },
+  'dark_mode': { label: 'Dark Mode', icon: '🌑' },
+  'editorial': { label: 'Editorial', icon: '📰' },
+  '3d_render': { label: '3D Render', icon: '🧊' },
+  'hand_drawn': { label: 'Hand Drawn', icon: '✏️' },
+  'product_demo': { label: 'Demo', icon: '▶️' },
+  'founder_forward': { label: 'Founder', icon: '👤' },
+  'ingredient_breakdown': { label: 'Ingredients', icon: '🔬' },
+  'behind_scenes': { label: 'BTS', icon: '🎬' },
+  'packaging_hero': { label: 'Packaging', icon: '📦' },
+  'unboxing': { label: 'Unboxing', icon: '🎁' },
+  'text_typography': { label: 'Typography', icon: '🔤' },
+  'screenshot': { label: 'Screenshot', icon: '🖥️' },
+  'meme_native': { label: 'Meme', icon: '😂' },
+  'split_screen': { label: 'Split Screen', icon: '⬛⬜' },
+  'before_after': { label: 'Before/After', icon: '🔄' },
+  'social_proof_stack': { label: 'Proof Stack', icon: '⭐' },
+  'problem_visualization': { label: 'Problem Viz', icon: '🔴' },
+  'curiosity_gap': { label: 'Curiosity', icon: '❓' },
+  'urgency_scarcity': { label: 'Urgency', icon: '🚨' },
+  'lego_brick': { label: 'LEGO', icon: '🧱' },
+  'claymation': { label: 'Claymation', icon: '🏺' },
+  'wobble_jelly': { label: 'Jelly', icon: '🍮' },
+  'crayon_drawing': { label: 'Crayon', icon: '🖍️' },
+  'whiteboard': { label: 'Whiteboard', icon: '📋' },
+  'paper_cutout': { label: 'Cutout', icon: '✂️' },
+  'pixel_art': { label: 'Pixel Art', icon: '👾' },
+  'watercolor': { label: 'Watercolor', icon: '🎨' },
+  'chalkboard': { label: 'Chalkboard', icon: '📓' },
+  'pop_art': { label: 'Pop Art', icon: '🎭' },
+  'neon_cyberpunk': { label: 'Neon', icon: '💜' },
+  'vintage_poster': { label: 'Vintage', icon: '📜' },
+  'blueprint': { label: 'Blueprint', icon: '📐' },
+  'embroidery': { label: 'Embroidery', icon: '🧵' },
+  'balloon_inflatable': { label: 'Balloon', icon: '🎈' },
+  'ice_sculpture': { label: 'Ice', icon: '🧊' },
+  'food_art': { label: 'Food Art', icon: '🍽️' },
+  'miniature_tilt': { label: 'Miniature', icon: '🏠' },
+  'xray_see_through': { label: 'X-Ray', icon: '🩻' },
+  'holographic': { label: 'Holographic', icon: '🌈' },
+  'origami': { label: 'Origami', icon: '🦢' },
+  'stained_glass': { label: 'Stained Glass', icon: '🏛️' },
+  'mosaic': { label: 'Mosaic', icon: '🧩' },
+  'sand_sculpture': { label: 'Sand', icon: '🏖️' },
+  'cloud_smoke': { label: 'Cloud', icon: '☁️' }
+};
+
+app.selectedBiases = [];
+app.selectedStyles = [];
+
+function populateAdSettingsGrids() {
+  const biasGrid = document.getElementById('biasGrid');
+  const styleGrid = document.getElementById('styleGrid');
+  if (!biasGrid || !styleGrid) return;
+
+  // Only populate if empty
+  if (biasGrid.children.length === 0) {
+    biasGrid.innerHTML = Object.entries(BIAS_DATA).map(([key, val]) => `
+      <div class="bias-tile" data-bias="${key}" onclick="toggleBias(this, '${key}')" title="${val.tip}"
+        style="padding:6px 4px;border:1px solid #e2e8f0;border-radius:8px;text-align:center;cursor:pointer;transition:all 0.15s;font-size:11px;background:#fff;user-select:none;">
+        <div style="font-size:16px;margin-bottom:2px;">${val.icon}</div>
+        <div style="font-weight:500;line-height:1.2;color:#475569;">${val.label}</div>
+      </div>
+    `).join('');
+  }
+
+  if (styleGrid.children.length === 0) {
+    styleGrid.innerHTML = Object.entries(STYLE_DATA).map(([key, val]) => `
+      <div class="style-tile" data-style="${key}" onclick="toggleStyle(this, '${key}')"
+        style="padding:6px 4px;border:1px solid #e2e8f0;border-radius:8px;text-align:center;cursor:pointer;transition:all 0.15s;font-size:11px;background:#fff;user-select:none;">
+        <div style="font-size:16px;margin-bottom:2px;">${val.icon}</div>
+        <div style="font-weight:500;line-height:1.2;color:#475569;">${val.label}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function toggleBias(el, biasKey) {
+  const idx = app.selectedBiases.indexOf(biasKey);
+  if (idx >= 0) {
+    app.selectedBiases.splice(idx, 1);
+    el.style.background = '#fff';
+    el.style.borderColor = '#e2e8f0';
+    el.style.boxShadow = 'none';
+  } else {
+    if (app.selectedBiases.length >= 5) {
+      // Deselect the oldest
+      const oldKey = app.selectedBiases.shift();
+      const oldEl = document.querySelector(`.bias-tile[data-bias="${oldKey}"]`);
+      if (oldEl) { oldEl.style.background = '#fff'; oldEl.style.borderColor = '#e2e8f0'; oldEl.style.boxShadow = 'none'; }
+    }
+    app.selectedBiases.push(biasKey);
+    el.style.background = 'linear-gradient(135deg,#ede9fe,#ddd6fe)';
+    el.style.borderColor = '#8b5cf6';
+    el.style.boxShadow = '0 0 0 1px #8b5cf6';
+  }
+  // Clear power stack highlights
+  document.querySelectorAll('.power-stack-btn').forEach(b => { b.style.background = '#fff'; b.style.color = '#334155'; });
+}
+
+function toggleStyle(el, styleKey) {
+  const idx = app.selectedStyles.indexOf(styleKey);
+  if (idx >= 0) {
+    app.selectedStyles.splice(idx, 1);
+    el.style.background = '#fff';
+    el.style.borderColor = '#e2e8f0';
+    el.style.boxShadow = 'none';
+  } else {
+    if (app.selectedStyles.length >= 5) {
+      const oldKey = app.selectedStyles.shift();
+      const oldEl = document.querySelector(`.style-tile[data-style="${oldKey}"]`);
+      if (oldEl) { oldEl.style.background = '#fff'; oldEl.style.borderColor = '#e2e8f0'; oldEl.style.boxShadow = 'none'; }
+    }
+    app.selectedStyles.push(styleKey);
+    el.style.background = 'linear-gradient(135deg,#e0f2fe,#bae6fd)';
+    el.style.borderColor = '#0ea5e9';
+    el.style.boxShadow = '0 0 0 1px #0ea5e9';
+  }
+}
+
+function applyPowerStack(stackName) {
+  const stacks = {
+    'urgency': ['scarcity', 'loss_aversion', 'regret_aversion', 'goal_gradient', 'zero_risk'],
+    'trust': ['social_proof', 'authority', 'commitment_consistency', 'processing_fluency', 'pratfall_effect'],
+    'desire': ['endowment', 'curiosity_gap', 'mere_exposure', 'peak_end_rule', 'picture_superiority'],
+    'comparison': ['anchoring', 'contrast_effect', 'decoy_effect', 'framing', 'zero_risk'],
+    'identity': ['in_group', 'confirmation_bias', 'liking', 'bandwagon', 'representativeness']
+  };
+  const biases = stacks[stackName] || [];
+  // Clear all current selections
+  app.selectedBiases = [];
+  document.querySelectorAll('.bias-tile').forEach(el => { el.style.background = '#fff'; el.style.borderColor = '#e2e8f0'; el.style.boxShadow = 'none'; });
+  // Select the stack biases
+  biases.forEach(b => {
+    const el = document.querySelector(`.bias-tile[data-bias="${b}"]`);
+    if (el) {
+      app.selectedBiases.push(b);
+      el.style.background = 'linear-gradient(135deg,#ede9fe,#ddd6fe)';
+      el.style.borderColor = '#8b5cf6';
+      el.style.boxShadow = '0 0 0 1px #8b5cf6';
+    }
+  });
+  // Highlight active power stack button
+  document.querySelectorAll('.power-stack-btn').forEach(btn => {
+    if (btn.textContent.trim().toLowerCase() === stackName) {
+      btn.style.background = 'linear-gradient(135deg,#8b5cf6,#6d28d9)';
+      btn.style.color = '#fff';
+    } else {
+      btn.style.background = '#fff';
+      btn.style.color = '#334155';
+    }
+  });
 }
 // ============================================================
 // NANO BANANA PRO - AI IMAGE GENERATION
@@ -1961,6 +2392,13 @@ const payload = {
   tone: document.getElementById('adTone')?.value,
   hook_framework: document.getElementById('adHook')?.value,
   num_variations: parseInt(document.getElementById('adVariations')?.value || '3'),
+  // Image prompt settings
+  cognitive_biases: app.selectedBiases || [],
+  ad_styles: app.selectedStyles || [],
+  aspect_ratio: document.getElementById('adAspectRatio')?.value || '4:5',
+  num_prompts: parseInt(document.getElementById('adNumPrompts')?.value || '5'),
+  custom_concept: document.getElementById('adCustomConcept')?.value || '',
+  // Email sequence settings
   sequence_type: document.getElementById('emailSeqType')?.value,
   sequence_length: parseInt(document.getElementById('emailSeqLength')?.value || '5'),
   days_between: parseInt(document.getElementById('emailDaysBetween')?.value || '2')
@@ -2510,21 +2948,201 @@ alert('Failed to import page');
 });
 }
 function saveBrandGuide(clientId){
-const brandGuide ={
-primaryColor:document.getElementById('colorPrimary').value,
-secondaryColor:document.getElementById('colorSecondary').value,
-accentColor:document.getElementById('colorAccent').value
+const styleGuide = {
+  colors: {
+    primary: document.getElementById('colorPrimary')?.value || '#2563eb',
+    secondary: document.getElementById('colorSecondary')?.value || '#10b981',
+    accent: document.getElementById('colorAccent')?.value || '#f59e0b',
+    background: document.getElementById('colorBackground')?.value || '#ffffff',
+    text: document.getElementById('colorText')?.value || '#1e293b'
+  },
+  typography: {
+    headingFont: document.getElementById('bgHeadingFont')?.value || 'Inter',
+    bodyFont: document.getElementById('bgBodyFont')?.value || 'Inter'
+  },
+  layout: {
+    borderRadius: document.getElementById('bgBorderRadius')?.value || '8',
+    spacingUnit: document.getElementById('bgSpacingUnit')?.value || '8',
+    maxWidth: document.getElementById('bgMaxWidth')?.value || '800'
+  },
+  buttons: {
+    shape: document.getElementById('bgButtonShape')?.value || 'rounded',
+    style: document.getElementById('bgButtonStyle')?.value || 'solid'
+  },
+  voice: {
+    tone: document.getElementById('bgVoiceTone')?.value || 'professional',
+    keywords: document.getElementById('bgBrandKeywords')?.value || ''
+  }
 };
-fetch(`/api/clients/${clientId}/style-guide`,{
-method:'PUT',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(brandGuide)
+fetch(`/api/clients/${clientId}/style-guide`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(styleGuide)
 })
 .then(res => res.json())
-.then(data =>{
-alert('Brand guide saved!');
-})
+.then(() => alert('Brand guide saved!'))
 .catch(err => console.error('Failed to save brand guide:', err));
+}
+
+function updateResearch(clientId) {
+  const updates = {
+    tagline: document.getElementById('resTagline')?.value || '',
+    industry: document.getElementById('resIndustry')?.value || '',
+    brandVoice: document.getElementById('resBrandVoice')?.value || '',
+    valuePropositions: (document.getElementById('resValueProps')?.value || '').split('\n').filter(v => v.trim()),
+    differentiators: (document.getElementById('resDifferentiators')?.value || '').split('\n').filter(v => v.trim())
+  };
+  fetch(`/api/clients/${clientId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  }).catch(err => console.error('Failed to update research:', err));
+}
+
+function addProduct(clientId) {
+  const name = prompt('Product/Service Name:');
+  if (!name) return;
+  const description = prompt('Brief Description:') || '';
+  const price = prompt('Price (optional):') || '';
+  const featuresRaw = prompt('Key Features (comma-separated, optional):') || '';
+  const features = featuresRaw.split(',').map(f => f.trim()).filter(Boolean);
+  fetch(`/api/clients/${clientId}/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, description, price, features })
+  })
+  .then(res => res.json())
+  .then(() => { showClientDetail(clientId); })
+  .catch(err => console.error('Failed to add product:', err));
+}
+
+function removeProduct(clientId, index) {
+  if (!confirm('Remove this product?')) return;
+  fetch(`/api/clients/${clientId}`)
+  .then(res => res.json())
+  .then(client => {
+    const products = client.products || [];
+    products.splice(index, 1);
+    return fetch(`/api/clients/${clientId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products })
+    });
+  })
+  .then(() => showClientDetail(clientId))
+  .catch(err => console.error('Failed to remove product:', err));
+}
+
+function addAudience(clientId) {
+  const name = prompt('Audience Name (e.g., "Health-conscious women 35-55"):');
+  if (!name) return;
+  const description = prompt('Description:') || '';
+  const painPointsRaw = prompt('Pain Points (comma-separated):') || '';
+  const painPoints = painPointsRaw.split(',').map(p => p.trim()).filter(Boolean);
+  fetch(`/api/clients/${clientId}/audiences`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, description, painPoints })
+  })
+  .then(res => res.json())
+  .then(() => showClientDetail(clientId))
+  .catch(err => console.error('Failed to add audience:', err));
+}
+
+function removeAudience(clientId, index) {
+  if (!confirm('Remove this audience?')) return;
+  fetch(`/api/clients/${clientId}`)
+  .then(res => res.json())
+  .then(client => {
+    const audiences = client.audiences || [];
+    audiences.splice(index, 1);
+    return fetch(`/api/clients/${clientId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audiences })
+    });
+  })
+  .then(() => showClientDetail(clientId))
+  .catch(err => console.error('Failed to remove audience:', err));
+}
+
+function addVerifiedClaim(clientId) {
+  const text = prompt('Claim/Testimonial/Statistic text:');
+  if (!text) return;
+  const category = prompt('Category (CLAIM, TESTIMONIAL, or STATISTIC):') || 'CLAIM';
+  const source = prompt('Source URL (optional):') || '';
+  fetch(`/api/clients/${clientId}/claims`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, category: category.toUpperCase(), source })
+  })
+  .then(res => res.json())
+  .then(() => showClientDetail(clientId))
+  .catch(err => console.error('Failed to add claim:', err));
+}
+
+function removeClaim(clientId, index) {
+  if (!confirm('Remove this verified claim?')) return;
+  fetch(`/api/clients/${clientId}`)
+  .then(res => res.json())
+  .then(client => {
+    const claims = client.claims || [];
+    claims.splice(index, 1);
+    return fetch(`/api/clients/${clientId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claims })
+    });
+  })
+  .then(() => showClientDetail(clientId))
+  .catch(err => console.error('Failed to remove claim:', err));
+}
+
+function filterClaims(category) {
+  document.querySelectorAll('.claim-filter').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.background = '#fff';
+  });
+  event.target.classList.add('active');
+  event.target.style.background = '#f1f5f9';
+  document.querySelectorAll('.claim-item').forEach(el => {
+    if (category === 'all' || el.dataset.category === category) {
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+async function scrapeVerifiedClaims(clientId) {
+  const client = app.clients.find(c => c.id === clientId);
+  if (!client?.website) { alert('No website URL set for this client. Add one first.'); return; }
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Scraping...';
+  try {
+    const response = await fetch('/api/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'scrape-claims',
+        clientId: clientId,
+        url: client.website
+      })
+    });
+    const data = await response.json();
+    if (data.claims && data.claims.length > 0) {
+      alert('Found ' + data.claims.length + ' verified claims!');
+      showClientDetail(clientId);
+    } else {
+      alert('No claims found on the website. Try adding them manually.');
+    }
+  } catch (err) {
+    console.error('Scrape failed:', err);
+    alert('Failed to scrape claims: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Scrape from Website';
 }
 function toggleChatPanel(){
 document.getElementById('chatPanel').classList.toggle('active');
