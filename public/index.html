@@ -1312,7 +1312,10 @@ row.innerHTML = `
 <td>${page.views || 0}</td>
 <td>${page.leads || 0}</td>
 <td>${conv}%</td>
-<td><a href="${page.url}" target="_blank" style="color:#2563eb;text-decoration:none;">View →</a></td>
+<td>
+<a href="${page.url}" target="_blank" style="color:#2563eb;text-decoration:none;">Vercel →</a>
+${page.github_pages_url ? `<br><a href="${page.github_pages_url}" target="_blank" style="color:#10b981;text-decoration:none;font-size:12px;">GitHub Pages →</a>` : ''}
+</td>
 <td>
 <div class="action-buttons">
 <button class="action-button" title="Visual Edit" onclick="editPage('${page.id}')">🎨</button>

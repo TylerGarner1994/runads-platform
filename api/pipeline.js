@@ -9,6 +9,7 @@ import { scrapeWebsite, extractBrandAssets, extractImages, fetchPage } from '../
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
 import { savePage as savePageToStorage, getClient, updateClient } from '../lib/storage.js';
+import { deployPage as deployToGitHubPages, getPagesUrl } from '../lib/github.js';
 
 // ============================================================
 // ANTHROPIC API HELPER
@@ -656,12 +657,28 @@ async function runAssembly(job) {
     console.error('Failed to save page:', e.message);
   }
 
+  // Deploy to GitHub Pages (parallel to Vercel hosting — like Unicorn does)
+  let githubPagesUrl = null;
+  try {
+    githubPagesUrl = await deployToGitHubPages(slug, html);
+    if (githubPagesUrl) {
+      console.log(`GitHub Pages deployed: ${githubPagesUrl}`);
+      // Update the page record with the GitHub Pages URL
+      try {
+        await savePageToStorage({ ...page, github_pages_url: githubPagesUrl });
+      } catch (e) {}
+    }
+  } catch (e) {
+    console.error('GitHub Pages deployment failed (non-fatal):', e.message);
+  }
+
   return {
     data: {
       html,
       pageId,
       pageName,
       slug,
+      githubPagesUrl,
       factcheckScore: factcheck.overall_score || null,
       factcheckRecommendation: factcheck.recommendation || 'approve'
     },
