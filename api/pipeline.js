@@ -7,7 +7,7 @@ export const config = { maxDuration: 300 };
 import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, getStepLabel, PIPELINE_STEPS } from '../lib/job-manager.js';
 import { scrapeWebsite, extractBrandAssets } from '../lib/website-scraper.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
-import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent } from '../lib/design-system.js';
+import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
 import { savePage as savePageToStorage } from '../lib/storage.js';
 
 // ============================================================
@@ -390,7 +390,18 @@ async function runDesign(job) {
   // Step 3: Ask Claude to populate the template with content (NOT generate structure)
   const companyName = research.company_name || 'Our Company';
 
-  const systemPrompt = `You are an elite landing page content specialist. You will receive an HTML template with {{PLACEHOLDER}} slots. Your job is to fill those slots with compelling content using the copy data provided. Return a JSON object mapping each placeholder name to its HTML content. Only return valid JSON.`;
+  const systemPrompt = `You are an elite landing page content specialist creating Unicorn Marketers-quality pages. You will receive an HTML template with {{PLACEHOLDER}} slots. Your job is to fill those slots with compelling, editorial-quality content using the copy data provided.
+
+KEY QUALITY GUIDELINES:
+- Write in a professional editorial tone — this should read like a high-end magazine article, NOT like an ad
+- Use rich HTML components in body sections: pullquotes (<div class="pullquote"><p>quote</p><cite>— Source</cite></div>), highlight boxes (<div class="highlight-box"><p>key insight</p></div>), and quote blocks (<div class="quote-block"><p class="quote-text">"quote"</p><p class="quote-author">— Name</p></div>)
+- Include specific, data-driven statistics with real numbers (not generic claims)
+- HERO_BODY should start with a compelling hook — the template uses a drop cap on the first letter
+- Every section should have 3-5 paragraphs of substantive, story-driven copy
+- Testimonials should include first name, last initial, and a specific result
+- Never leave any placeholder unfilled — generate credible content for every slot
+
+Return a JSON object mapping each placeholder name to its HTML content. Only return valid JSON.`;
 
   const userPrompt = `Fill the content slots in this ${pageType} page template.
 
@@ -432,6 +443,16 @@ IMPORTANT: Every {{PLACEHOLDER}} in the template must have a corresponding key i
   // Step 4: Populate the template with Claude's content
   let html = template.html;
 
+  // Build product showcase for advertorial pages
+  const productSection = pageType === 'advertorial' ? getComponent('product-showcase', {
+    label: research.industry || 'Featured Product',
+    headline: research.company_name || copy.meta?.title || 'Our Product',
+    description: copy.hero?.above_fold_text || '',
+    features: (research.value_propositions || []).slice(0, 4),
+    cta_text: copy.ctas?.primary || 'Try It Now',
+    guarantee_text: '60-Day Money Back Guarantee'
+  }) : '';
+
   // Add pre-built component sections
   const componentMap = {
     STATS_SECTION: statsSection,
@@ -440,7 +461,8 @@ IMPORTANT: Every {{PLACEHOLDER}} in the template must have a corresponding key i
     TESTIMONIALS_SECTION: testimonialsSection,
     FAQ_SECTION: faqSection,
     BENEFITS_SECTION: benefitsSection,
-    RESULTS_SECTION: statsSection, // Reuse stats for results display
+    RESULTS_SECTION: statsSection,
+    PRODUCT_SECTION: productSection,
   };
 
   // First inject components
@@ -450,7 +472,7 @@ IMPORTANT: Every {{PLACEHOLDER}} in the template must have a corresponding key i
   // Fill any remaining placeholders with empty strings
   html = html.replace(/\{\{[A-Z_]+\}\}/g, '');
 
-  return { data: { html, template_type: pageType, design_system_version: '2.0' }, tokensUsed };
+  return { data: { html, template_type: pageType, design_system_version: '3.0' }, tokensUsed };
 }
 
 // STEP 6: FACTCHECK - Verify claims
