@@ -44,6 +44,10 @@
       "destination": "/api/chat"
     },
     {
+      "source": "/api/generate-image/:path*",
+      "destination": "/api/generate-image"
+    },
+    {
       "source": "/p/:slug",
       "destination": "/api/page-view"
     },
