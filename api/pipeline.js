@@ -8,7 +8,7 @@ import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, g
 import { scrapeWebsite, extractBrandAssets, extractImages, fetchPage } from '../lib/website-scraper.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
-import { savePage as savePageToStorage, getClient, updateClient } from '../lib/storage.js';
+import { savePage as savePageToStorage, getClient, updateClient, saveVerifiedClaims, getVerifiedClaims } from '../lib/storage.js';
 import { deployPage as deployToGitHubPages, getPagesUrl } from '../lib/github.js';
 import { getResearchSkillContext, getStrategySkillContext, getCopySkillContext, getBrandSkillContext } from '../lib/skill-loader.js';
 
@@ -197,6 +197,95 @@ Return a JSON object with these fields:
   researchData._scrapedFonts = websiteData.fonts || [];
   researchData._scrapedImages = websiteData.images || [];
   researchData._scrapedTestimonials = websiteData.testimonials || [];
+
+  // Auto-populate verified_claims table from research findings
+  if (job.client_id) {
+    try {
+      const claimsToSave = [];
+
+      // Extract testimonials as verified claims (high confidence)
+      const testimonials = researchData.product_research?.proof_inventory?.testimonials || [];
+      for (const t of testimonials) {
+        if (t.quote) {
+          claimsToSave.push({
+            claim_text: t.quote,
+            source: url || 'website',
+            category: 'testimonial',
+            claim_type: 'testimonial',
+            confidence_score: 0.9,
+            verification_status: 'auto_extracted'
+          });
+        }
+      }
+
+      // Extract statistics/data points as verified claims
+      const dataPoints = researchData.product_research?.proof_inventory?.data_points || [];
+      for (const dp of dataPoints) {
+        if (dp) {
+          claimsToSave.push({
+            claim_text: typeof dp === 'string' ? dp : dp.text || dp.claim || JSON.stringify(dp),
+            source: url || 'website',
+            category: 'statistic',
+            claim_type: 'statistic',
+            confidence_score: 0.8,
+            verification_status: 'auto_extracted'
+          });
+        }
+      }
+
+      // Extract credentials as verified claims
+      const credentials = researchData.product_research?.proof_inventory?.credentials || [];
+      for (const cred of credentials) {
+        if (cred) {
+          claimsToSave.push({
+            claim_text: typeof cred === 'string' ? cred : cred.text || JSON.stringify(cred),
+            source: url || 'website',
+            category: 'credential',
+            claim_type: 'claim',
+            confidence_score: 0.85,
+            verification_status: 'auto_extracted'
+          });
+        }
+      }
+
+      // Extract value propositions as lower-confidence claims
+      const valueProps = researchData.value_propositions || [];
+      for (const vp of valueProps) {
+        if (vp) {
+          claimsToSave.push({
+            claim_text: typeof vp === 'string' ? vp : JSON.stringify(vp),
+            source: url || 'website',
+            category: 'value_proposition',
+            claim_type: 'claim',
+            confidence_score: 0.7,
+            verification_status: 'auto_extracted'
+          });
+        }
+      }
+
+      // Also extract from scraped testimonials (direct from HTML)
+      for (const st of websiteData.testimonials || []) {
+        if (st.quote && !claimsToSave.find(c => c.claim_text === st.quote)) {
+          claimsToSave.push({
+            claim_text: st.quote,
+            source: url || 'website',
+            category: 'testimonial',
+            claim_type: 'testimonial',
+            confidence_score: 0.9,
+            verification_status: 'auto_extracted'
+          });
+        }
+      }
+
+      if (claimsToSave.length > 0) {
+        const savedCount = await saveVerifiedClaims(job.client_id, claimsToSave);
+        console.log(`Saved ${savedCount} verified claims for client ${job.client_id}`);
+        researchData._verifiedClaimsSaved = savedCount;
+      }
+    } catch (e) {
+      console.warn('Failed to save verified claims (non-fatal):', e.message);
+    }
+  }
 
   return { data: researchData, tokensUsed };
 }
@@ -804,30 +893,66 @@ IMPORTANT: Every {{PLACEHOLDER}} in the template must have a corresponding key i
   return { data: { html, template_type: pageType, design_system_version: '3.0' }, tokensUsed };
 }
 
-// STEP 6: FACTCHECK - Verify claims
+// STEP 6: FACTCHECK - Verify claims against verified_claims database
 async function runFactcheck(job) {
   const research = job.research_data || {};
   const copy = job.copy_data || {};
-  const html = job.design_data?.html || '';
+  let html = job.design_data?.html || '';
 
-  const systemPrompt = `You are a rigorous fact-checker and compliance reviewer. Analyze the landing page copy for accuracy, verify claims against source data, and flag any potentially misleading statements. Return valid JSON only.`;
+  // Step 1: Fetch verified claims from database for this client
+  let dbClaims = [];
+  if (job.client_id) {
+    try {
+      dbClaims = await getVerifiedClaims(job.client_id, { limit: 50 });
+    } catch (e) {
+      console.warn('Could not fetch verified claims:', e.message);
+    }
+  }
 
-  const userPrompt = `Fact-check this landing page content.
+  // Step 2: Extract claims from the generated HTML
+  const extractedClaims = extractClaimsFromHtml(html);
+
+  // Step 3: Cross-reference extracted claims against verified claims database
+  const verificationResults = crossReferenceVerifiedClaims(extractedClaims, dbClaims, research);
+
+  // Step 4: Send to Claude for additional review with verified claims context
+  const verifiedClaimsContext = dbClaims.length > 0
+    ? `\n\nVERIFIED CLAIMS DATABASE (${dbClaims.length} entries — only these are confirmed true):\n${dbClaims.map(c => `- [${c.category || 'general'}] "${c.claim_text}" (confidence: ${c.confidence_score || 'N/A'}, source: ${c.source || 'website'})`).join('\n')}`
+    : '\n\nNo verified claims in database — treat ALL statistics and specific claims as unverified.';
+
+  const systemPrompt = `You are a rigorous fact-checker and compliance reviewer. You have access to a VERIFIED CLAIMS DATABASE — only claims that appear in this database (or closely match) should be considered verified.
+
+CRITICAL RULES:
+1. Statistics (percentages, numbers, dollar amounts) that do NOT appear in the verified claims database must be flagged as "unverified"
+2. Testimonials that do NOT match verified testimonials must be flagged
+3. Claims about awards, certifications, or "featured in" that aren't verified must be flagged
+4. If a claim is fabricated by the AI (not from research or verified claims), flag as "high" severity
+
+Return valid JSON only.`;
+
+  const userPrompt = `Fact-check this landing page content against the verified claims database.
+${verifiedClaimsContext}
 
 ORIGINAL RESEARCH DATA:
 Key Claims: ${JSON.stringify(research.key_claims || [])}
-Testimonials: ${JSON.stringify(research.testimonials || [])}
+Testimonials: ${JSON.stringify(research.product_research?.proof_inventory?.testimonials || research.testimonials || [])}
 Products: ${JSON.stringify(research.products_services || [])}
+Data Points: ${JSON.stringify(research.product_research?.proof_inventory?.data_points || [])}
 
 COPY TO VERIFY:
 Headlines: ${JSON.stringify(copy.headlines || {})}
 Body Sections: ${JSON.stringify(copy.body_sections || [])}
 Social Proof Stats: ${JSON.stringify(copy.social_proof?.stats || [])}
+Testimonials Used: ${JSON.stringify(copy.social_proof?.testimonials || [])}
+
+PRE-CHECKED RESULTS (from automated cross-reference):
+${JSON.stringify(verificationResults.summary, null, 2)}
 
 Return JSON:
 {
   "verified_claims": [{"claim": "string", "status": "verified|unverified|needs_source", "source": "string or null", "note": "string"}],
   "flagged_issues": [{"issue": "string", "severity": "low|medium|high", "suggestion": "string"}],
+  "claims_to_remove": ["string (exact text of claims that should be removed from HTML)"],
   "compliance_notes": ["string"],
   "overall_score": 0-100,
   "recommendation": "approve|revise|reject"
@@ -835,17 +960,143 @@ Return JSON:
 
   const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-haiku-4-5-20251001', 4096);
   const factcheckData = parseJSON(text);
+
+  // Step 5: Remove/flag unverified claims from HTML if flagged
+  let cleanedHtml = html;
+  const claimsToRemove = factcheckData.claims_to_remove || [];
+  for (const claimText of claimsToRemove) {
+    if (claimText && claimText.length > 10) {
+      // Replace the claim with a verification notice or remove it
+      cleanedHtml = cleanedHtml.replace(claimText, '[STAT REMOVED - UNVERIFIED]');
+    }
+  }
+
+  // If claims were removed, update the design data with cleaned HTML
+  if (claimsToRemove.length > 0 && cleanedHtml !== html) {
+    factcheckData._htmlCleaned = true;
+    factcheckData._claimsRemoved = claimsToRemove.length;
+    // Store the cleaned HTML back in design_data for assembly step
+    // (This is done via the job update in the main handler)
+  }
+
+  factcheckData._verifiedClaimsCount = dbClaims.length;
+  factcheckData._extractedClaimsCount = extractedClaims.length;
+  factcheckData._crossReferenceResults = verificationResults.summary;
+  if (cleanedHtml !== html) {
+    factcheckData._cleanedHtml = cleanedHtml;
+  }
+
   return { data: factcheckData, tokensUsed };
+}
+
+// Helper: Extract claims (statistics, testimonials, specific assertions) from HTML
+function extractClaimsFromHtml(html) {
+  if (!html) return [];
+  const claims = [];
+
+  // Strip HTML tags for text analysis
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+  // Extract statistics: percentages, numbers with units
+  const statPatterns = [
+    /(\d+(?:\.\d+)?%\s*(?:of|increase|decrease|improvement|reduction|more|less|better|growth|success|satisfaction|report|experience)[^.]*)/gi,
+    /(\$[\d,]+(?:\.\d+)?(?:\s*(?:million|billion|saved|revenue|profit|increase))?[^.]*)/gi,
+    /(\d+(?:,\d{3})*\+?\s*(?:customers|clients|users|patients|people|reviews|testimonials|results|case studies|countries|years)[^.]*)/gi,
+  ];
+
+  for (const pattern of statPatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const claim = match[1].trim();
+      if (claim.length > 10 && claim.length < 300) {
+        claims.push({ text: claim, type: 'statistic' });
+      }
+    }
+  }
+
+  // Extract quoted testimonials
+  const quotePattern = /[""]([^""]{30,300})[""](?:\s*[-–—]\s*([A-Z][^,\n]{2,50}))?/g;
+  let match;
+  while ((match = quotePattern.exec(text)) !== null) {
+    claims.push({ text: match[1].trim(), type: 'testimonial', author: match[2]?.trim() });
+  }
+
+  return claims;
+}
+
+// Helper: Cross-reference extracted claims against verified claims DB
+function crossReferenceVerifiedClaims(extractedClaims, dbClaims, research) {
+  const results = { verified: [], unverified: [], needs_review: [] };
+
+  for (const claim of extractedClaims) {
+    let matched = false;
+
+    // Check against verified claims database
+    for (const dbClaim of dbClaims) {
+      if (fuzzyClaimMatch(claim.text, dbClaim.claim_text)) {
+        results.verified.push({ claim: claim.text, matchedTo: dbClaim.claim_text, confidence: dbClaim.confidence_score });
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      // Check against research source content as fallback
+      const sourceContent = JSON.stringify(research);
+      if (claim.type === 'statistic') {
+        // For stats, check if any numbers appear in the source
+        const numbers = claim.text.match(/\d+(?:\.\d+)?/g) || [];
+        const foundInSource = numbers.some(n => sourceContent.includes(n));
+        if (foundInSource) {
+          results.needs_review.push({ claim: claim.text, reason: 'Numbers found in research but not in verified claims DB' });
+        } else {
+          results.unverified.push({ claim: claim.text, reason: 'Statistic not found in verified claims or research' });
+        }
+      } else {
+        results.needs_review.push({ claim: claim.text, reason: 'Not in verified claims DB, needs manual review' });
+      }
+    }
+  }
+
+  return {
+    results,
+    summary: {
+      total_claims_found: extractedClaims.length,
+      verified: results.verified.length,
+      unverified: results.unverified.length,
+      needs_review: results.needs_review.length
+    }
+  };
+}
+
+// Helper: Fuzzy matching for claims (handles minor wording differences)
+function fuzzyClaimMatch(claimA, claimB) {
+  if (!claimA || !claimB) return false;
+  const a = claimA.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const b = claimB.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Exact substring match
+  if (a.includes(b) || b.includes(a)) return true;
+  // Check if key numbers match
+  const numsA = claimA.match(/\d+(?:\.\d+)?/g) || [];
+  const numsB = claimB.match(/\d+(?:\.\d+)?/g) || [];
+  if (numsA.length > 0 && numsB.length > 0) {
+    return numsA.some(n => numsB.includes(n));
+  }
+  return false;
 }
 
 // STEP 7: ASSEMBLY - Final QA and page creation
 async function runAssembly(job) {
-  let html = job.design_data?.html || '';
+  // Use cleaned HTML from factcheck if available, otherwise use design HTML
+  let html = job.factcheck_data?._cleanedHtml || job.design_data?.html || '';
   const research = job.research_data || {};
   const copy = job.copy_data || {};
   const factcheck = job.factcheck_data || {};
   const pageType = job.page_type;
   const companyName = research.company_name || 'Landing Page';
+
+  // Remove any remaining [STAT REMOVED - UNVERIFIED] markers with clean alternatives
+  html = html.replace(/\[STAT REMOVED - UNVERIFIED\]/g, '');
 
   // ── Inject real product images from website scrape ──
   const scrapedImages = research._scrapedImages || [];
