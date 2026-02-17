@@ -261,6 +261,6 @@ These skills are provided for use in your marketing automation projects. The fra
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: January 2026  
-**Maintained By**: Max Finn / Unicorn Marketers
+**Version**: 1.4
+**Last Updated**: February 2026  
+**Maintained By**: RunAds
