@@ -95,7 +95,7 @@ async function saveGitHubFile(path, data, sha, message) {
 // STEP IMPLEMENTATIONS
 // ============================================================
 
-// STEP 1: RESEARCH - Deep website analysis
+// STEP 1: RESEARCH - Deep website analysis (DR-MARKET-RESEARCH Framework)
 async function runResearch(job) {
   const url = job.input_data.url || job.input_data.productUrl;
   const productName = job.input_data.productName;
@@ -109,34 +109,83 @@ async function runResearch(job) {
     }
   }
 
-  const systemPrompt = `You are a world-class market researcher and business analyst. Analyze the provided website/product information and extract comprehensive business intelligence. Return valid JSON only.`;
+  const systemPrompt = `You are a PhD-level market researcher conducting deep competitive and customer intelligence analysis. You will analyze the provided business to extract:
 
-  const userPrompt = `Analyze this business and extract detailed research data.
+1. **CUSTOMER RESEARCH**: Demographics, psychographics, Jobs-To-Be-Done (JTBD), pain point discovery, desire discovery
+2. **COMPETITOR ANALYSIS**: Positioning, messaging patterns, offer comparison, differentiation strategies
+3. **MARKET RESEARCH**: TAM/SAM/SOM sizing, market dynamics, growth indicators
+4. **PRODUCT RESEARCH**: Features-to-benefits mapping, unique mechanisms, USP, proof elements
 
-${url ? `Website URL: ${url}` : ''}
-${productName ? `Product/Service: ${productName}` : ''}
-${websiteData.meta ? `Page Title: ${websiteData.meta.title}\nMeta Description: ${websiteData.meta.description}` : ''}
-${websiteData.text ? `\nWebsite Content (excerpt):\n${websiteData.text.substring(0, 8000)}` : ''}
-${websiteData.products?.length ? `\nProducts found: ${websiteData.products.map(p => p.name).join(', ')}` : ''}
-${websiteData.testimonials?.length ? `\nTestimonials found: ${websiteData.testimonials.length}` : ''}
+Your job is to surface the 88-question avatar framework summary including:
+- Customer awareness level (Schwartz 1-5 scale)
+- Market sophistication stage (1-5)
+- Dominant resident emotion
+- Voice of Customer (VOC) — exact words/phrases customers use
+- Unique mechanism identification (what makes this different?)
+- Competitor positioning map
+- Proof inventory (testimonials, case studies, data, credentials)
+- Key objections/resistance points
+- Decision-making criteria
+
+Return valid JSON only.`;
+
+  const userPrompt = `Conduct PhD-level market research on this business. Extract competitive intelligence, customer insights, market dynamics, and proof elements.
+
+${url ? 'Website URL: ' + url : ''}
+${productName ? '\nProduct/Service: ' + productName : ''}
+${websiteData.meta ? '\nPage Title: ' + websiteData.meta.title + '\nMeta Description: ' + websiteData.meta.description : ''}
+${websiteData.text ? '\nWebsite Content (excerpt):\n' + websiteData.text.substring(0, 12000) : ''}
+${websiteData.products?.length ? '\nProducts found: ' + websiteData.products.map(p => p.name).join(', ') : ''}
+${websiteData.testimonials?.length ? '\nTestimonials found: ' + websiteData.testimonials.length : ''}
 
 Return a JSON object with these fields:
 {
   "company_name": "string",
   "industry": "string",
   "tagline": "string",
-  "value_propositions": ["string", ...],
-  "unique_differentiators": ["string", ...],
-  "products_services": [{"name": "string", "description": "string", "price": "string or null"}],
-  "target_audiences": [{"name": "string", "demographics": "string", "pain_points": ["string"], "desires": ["string"]}],
-  "testimonials": [{"quote": "string", "author": "string"}],
+  "value_propositions": ["string (each should be customer-centric, not feature-based)", ...],
+  "unique_differentiators": ["string (what makes this mechanically different?)", ...],
+  "products_services": [{"name": "string", "description": "string", "price": "string or null", "unique_mechanism": "string"}],
+
+  "customer_research": {
+    "avatar_summary": "string (88-question framework summary: demographics, psychographics, JTBD, pain points, desires)",
+    "awareness_level": "1-5 (Schwartz scale: 1=Unaware, 2=Problem-Aware, 3=Solution-Aware, 4=Product-Aware, 5=Most-Aware)",
+    "market_sophistication": "1-5 (1=Novice, 5=Expert)",
+    "dominant_emotion": "string (fear, hope, greed, pride, belonging, guilt?)",
+    "voice_of_customer": ["string (exact words customers use - extract from testimonials)", ...],
+    "pain_points_layered": [{"level": "surface|emotional|existential", "description": "string"}, ...],
+    "desires_layered": [{"level": "surface|aspiration|identity", "description": "string"}, ...]
+  },
+
+  "competitor_analysis": {
+    "competitors": ["string (company name)", ...],
+    "positioning_map": "string (how do competitors position relative to each other?)",
+    "messaging_matrix": ["string (common competitor messaging angles)", ...]
+  },
+
+  "market_research": {
+    "market_size_indicators": "string (TAM/SAM/SOM indicators if visible)",
+    "growth_signals": ["string", ...]
+  },
+
+  "product_research": {
+    "unique_mechanism": "string (THE core mechanism that makes this work differently. Use categories: New Discovery, Hidden Cause, Overlooked Factor, Proprietary Process, Counter-Intuitive)",
+    "mechanism_type": "string (New Discovery | Hidden Cause | Overlooked Factor | Proprietary Process | Counter-Intuitive)",
+    "proof_inventory": {
+      "testimonials": [{"quote": "string", "author": "string", "specificity": "result or transformation"}],
+      "case_studies": ["string (if available)", ...],
+      "credentials": ["string (certifications, awards, expert endorsements)", ...],
+      "data_points": ["string (studies, statistics, hard numbers)", ...]
+    },
+    "key_objections": ["string (what prevents customers from buying?)", ...]
+  },
+
   "brand_voice": {"tone": "string", "keywords": ["string"]},
-  "competitors": ["string"],
-  "key_claims": ["string"],
-  "emotional_hooks": ["string"]
+  "target_audiences": [{"name": "string", "demographics": "string", "pain_points": ["string"], "desires": ["string"]}],
+  "emotional_hooks": ["string (what moves customers emotionally?)"]
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 8192);
   const researchData = parseJSON(text);
   researchData._websiteMeta = websiteData.meta || {};
   researchData._scrapedColors = websiteData.colors || [];
@@ -211,7 +260,7 @@ Return a JSON object:
   return { data: brandData, tokensUsed };
 }
 
-// STEP 3: STRATEGY - Page outline and messaging
+// STEP 3: STRATEGY - Page outline and messaging (PERSONA-ARCHITECT + Strategic Framework)
 async function runStrategy(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
@@ -223,60 +272,153 @@ async function runStrategy(job) {
   const triggerContext = buildTriggerContext(pageType, 'solution_aware', 8);
   const stackContext = getStrategyContext(pageType);
 
-  const systemPrompt = `You are a world-class conversion strategist and direct response marketing expert. You combine the principles of Eugene Schwartz (awareness levels), Gary Halbert (hooks), Robert Cialdini (influence), and Oren Klaff (pitch framing). Create a detailed page strategy. Return valid JSON only.`;
+  const systemPrompt = `You are an elite conversion strategist combining:
+- **Eugene Schwartz** (awareness levels, sophistication calibration)
+- **Gary Halbert** (hooks, hooks, hooks — leading with strongest hooks)
+- **Robert Cialdini** (6 principles of influence)
+- **Oren Klaff** (pitch framing, pattern interrupts)
+- **Gary Bencivenga** (80/20 thinking, proof hierarchy)
+- **Evaldo** (16-Word Framework: Big Promise + Unique Mechanism + Overwhelming Proof)
 
-  const userPrompt = `Create a comprehensive page strategy for a ${pageType} page.
+Your job is to architect 3-5 detailed buyer personas and the strategy to move them from their current awareness level to purchase decision.
+
+For each persona, define:
+1. Demographics + psychographics
+2. Schwartz Awareness Level (1-5)
+3. Layered Pain Points (surface, emotional, existential)
+4. Layered Desires (surface, aspiration, identity)
+5. Top 5 Cognitive Biases (with stack recommendations)
+6. Objections/resistance points
+7. Decision-making style (rational, emotional, social proof-driven, etc.)
+8. Language patterns (actual words they use)
+
+Then architect the page strategy to move them through the awareness journey using:
+- Specific trigger sequences
+- Proof hierarchy (strongest to weakest)
+- Unique mechanism revelation
+- Copy architecture (advertorial vs sales letter)
+
+Return valid JSON only.`;
+
+  const userPrompt = `Create a comprehensive persona and page strategy for a ${pageType} page.
 
 BUSINESS INFO:
 Company: ${research.company_name || 'Unknown'}
 Industry: ${research.industry || 'Unknown'}
 Value Props: ${JSON.stringify(research.value_propositions || [])}
+Unique Mechanism: ${research.product_research?.unique_mechanism || research.unique_differentiators?.[0] || 'N/A'}
 Target Audience: ${audience || JSON.stringify(research.target_audiences?.[0] || {})}
 Tone: ${tone}
 Brand Voice: ${JSON.stringify(brand.brand_voice || research.brand_voice || {})}
+
+CUSTOMER RESEARCH:
+Awareness Level: ${research.customer_research?.awareness_level || research.awareness_level || '3 (Solution-Aware)'}
+Market Sophistication: ${research.customer_research?.market_sophistication || research.market_sophistication || '3'}
+Dominant Emotion: ${research.customer_research?.dominant_emotion || research.emotional_hooks?.[0] || 'Unknown'}
+Voice of Customer: ${JSON.stringify(research.customer_research?.voice_of_customer || [])}
+Pain Points: ${JSON.stringify(research.customer_research?.pain_points_layered || research.target_audiences?.[0]?.pain_points || [])}
+Desires: ${JSON.stringify(research.customer_research?.desires_layered || research.target_audiences?.[0]?.desires || [])}
+Key Objections: ${JSON.stringify(research.product_research?.key_objections || [])}
 
 ${triggerContext}
 
 ${stackContext}
 
-DELIVERABLE: Create a detailed strategy for a ${pageType} page. Return JSON:
+DELIVERABLE: Return JSON with persona architecture and page strategy:
 {
-  "page_title": "string",
-  "meta_description": "string",
-  "hero_strategy": {
-    "headline_angle": "string",
-    "subheadline_angle": "string",
-    "hero_hook_type": "string (e.g., curiosity-gap, statistic-lead, etc.)",
-    "primary_cta": "string"
-  },
-  "sections": [
+  "personas": [
     {
-      "section_name": "string",
-      "purpose": "string",
-      "psychological_triggers": ["trigger name", ...],
-      "content_brief": "string describing what this section should contain",
-      "cta": "string or null"
+      "persona_name": "string (e.g., 'Exhausted Executive')",
+      "demographics": {"age_range": "string", "income": "string", "location": "string", "education": "string"},
+      "psychographics": {"values": ["string"], "lifestyle": "string", "aspirations": "string"},
+      "awareness_level": "1-5 (Schwartz: 1=Unaware to 5=Most-Aware)",
+      "pain_points_layered": [
+        {"level": "surface", "point": "string (tangible, immediate)"},
+        {"level": "emotional", "point": "string (frustration, shame, anxiety)"},
+        {"level": "existential", "point": "string (identity, life meaning)"}
+      ],
+      "desires_layered": [
+        {"level": "surface", "desire": "string (tangible outcome)"},
+        {"level": "aspiration", "desire": "string (lifestyle, status)"},
+        {"level": "identity", "desire": "string (who they want to be)"}
+      ],
+      "cognitive_biases": [
+        {"bias": "string (e.g., Loss Aversion, Anchoring, etc.)", "application": "string (how we stack it)"},
+        {"bias": "string", "application": "string"},
+        {"bias": "string", "application": "string"},
+        {"bias": "string", "application": "string"},
+        {"bias": "string", "application": "string"}
+      ],
+      "objections": ["string (what prevents purchase?)", ...],
+      "decision_style": "string (rational | emotional | social-proof-driven | authority-driven)",
+      "language_patterns": ["string (exact VOC phrases)", ...]
     }
   ],
-  "psychology_plan": {
-    "primary_triggers": ["trigger ids and names"],
-    "stacking_sequence": "string describing the emotional journey",
-    "awareness_journey": "string (what awareness level we start at → where we take them)",
-    "objection_handling": ["objection → response pairs"]
+
+  "strategic_framework": {
+    "awareness_calibration": {
+      "starting_level": "1-5",
+      "target_level": "5 (Most-Aware)",
+      "journey": "string (how do we move them from awareness_level → Most-Aware?)"
+    },
+    "market_sophistication": "1-5",
+    "big_idea": "string (the core promise that moves this market)",
+    "unique_mechanism": "string (Evaldo's 16-Word: Big Promise + Unique Mechanism + Overwhelming Proof)",
+    "mechanism_type": "string (New Discovery | Hidden Cause | Overlooked Factor | Proprietary Process | Counter-Intuitive)",
+    "copy_architecture": "string (advertorial | sales_letter | magalog — which structure best moves this persona?)",
+    "proof_hierarchy": [
+      "Third-party credentialed proof (strongest)",
+      "Expert opinion/authority",
+      "Demonstration proof (before/after)",
+      "Specific customer testimonials with results",
+      "General testimonials/social proof",
+      "Logical/theoretical proof",
+      "Claims/promises (weakest)"
+    ]
   },
-  "social_proof_plan": {
-    "testimonial_placement": ["where to place testimonials"],
-    "data_points": ["specific stats/numbers to include"],
-    "authority_signals": ["credentials/endorsements to feature"]
+
+  "page_strategy": {
+    "page_title": "string",
+    "meta_description": "string",
+    "hero_strategy": {
+      "headline_angle": "string (must lead with Big Promise or biggest curiosity gap)",
+      "subheadline_angle": "string (support with unique mechanism or strongest proof)",
+      "opening_hook": "string (what pattern-interrupts, creates curiosity, or agitates the pain?)",
+      "hero_hook_type": "string (curiosity-gap | statistic-lead | story-hook | problem-agitation | secret-reveal)",
+      "primary_cta": "string (benefit-driven, specific action)"
+    },
+    "sections": [
+      {
+        "section_name": "string (e.g., 'Problem Agitation', 'Unique Mechanism Reveal', 'Proof Stack')",
+        "purpose": "string (what does this section accomplish in the journey?)",
+        "psychological_triggers": ["trigger name", ...],
+        "content_brief": "string (what copy should accomplish here?)",
+        "cta": "string or null (soft CTA if applicable)"
+      }
+    ],
+    "psychology_plan": {
+      "primary_triggers": ["trigger names and why we use them"],
+      "trigger_stack_sequence": "string (the emotional/psychological journey: opening pattern interrupt → problem agitation → unique mechanism reveal → social proof → objection handling → risk reversal → call to action)",
+      "awareness_journey": "string (e.g., 'Start at Problem-Aware (level 2) → Move to Solution-Aware (level 3) → Position our mechanism as the ONLY solution (level 4) → Overcome final objections → Purchase (level 5)')",
+      "objection_response_pairs": [
+        {"objection": "string", "response_strategy": "string (how we handle it in copy)"}
+      ]
+    },
+    "proof_strategy": {
+      "testimonial_placement": ["where to place testimonials by section"],
+      "data_points": ["specific numbers/stats to include", ...],
+      "authority_signals": ["credentials/expert endorsements", ...],
+      "proof_stack_order": "string (apply proof hierarchy strongest → weakest)"
+    }
   }
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 8192);
   const strategyData = parseJSON(text);
   return { data: strategyData, tokensUsed };
 }
 
-// STEP 4: COPY - Generate all copy
+// STEP 4: COPY - Generate all copy (LEGENDARY-SALES-LETTER Framework + 33 Laws)
 async function runCopy(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
@@ -286,98 +428,221 @@ async function runCopy(job) {
 
   const triggerContext = buildTriggerContext(pageType, 'solution_aware', 6);
 
-  const systemPrompt = `You are a master editorial copywriter and narrative architect. You combine:
-- **Gary Halbert's** direct response hooks and "A-pile" urgency
-- **Eugene Schwartz's** awareness-level sophistication and "Breakthrough Advertising" frameworks
-- **David Ogilvy's** research-driven elegance and factual specificity
-- **Joe Sugarman's** "slippery slide" — every line compels the next
-- **Gay Talese's** New Journalism narrative immersion (named characters, sensory details, scenes)
+  const systemPrompt = `You are a legendary master copywriter synthesizing the entire history of direct response brilliance:
 
-Your copy doesn't read like marketing. It reads like a compelling editorial piece that happens to lead to a product. You use:
-- **Named characters** with specific, relatable details (not "a busy mom" but "Lisa, a 42-year-old architect who hasn't slept through the night in 3 years")
-- **Sensory language** that puts the reader in a scene (sounds, textures, emotions)
-- **Data woven into narrative** (not just "clinically proven" but "In a 2024 randomized trial at the University of Melbourne, participants experienced a 47% improvement in deep sleep cycles within 14 days")
-- **Drop caps** for section openers to create editorial gravitas
-- **Pull quotes** that highlight the most compelling statistics or testimonials
-- **Progressive disclosure** — revealing information in a way that builds curiosity and momentum
+**Foundation:** You cannot create desire — only channel it. Market > Offer > Copy.
+
+**Masters You Channel:**
+- **Eugene Schwartz**: Awareness levels, sophistication stages, "Breakthrough Advertising"
+- **Gary Halbert**: Hooks that steal attention, A-pile urgency, conversational tone
+- **David Ogilvy**: Research-driven elegance, headlines that lead with benefit
+- **Joe Sugarman**: "Slippery slide" — every sentence compels the next, fascination bullets
+- **Gary Bencivenga**: 80/20 proof hierarchy, eliminating objections
+- **John Makepeace**: Dimensionalizing — creating vivid before/after pain states
+- **Dan Kennedy**: Direct response mechanics, hard closes, specificity
+- **Evaldo**: 16-Word Framework (Big Promise + Unique Mechanism + Overwhelming Proof)
+- **Gay Talese**: New Journalism (named characters, sensory details, narrative scenes)
+- **Robert Cialdini**: 6 Principles of Influence woven into structure
+- **Joe Sugarman's 28 Fascination Triggers**: Specific, Hidden, Counterintuitive, Warning, Question, How-To, Mistake, Best/Worst, Simple, Story Tease, Forbidden, Instant, Without, Authority, Discovery, Comparison, Page Reference, Even If, Never, Truth About, Weird Trick, Proof, Fear-Based, Insider, Magic Word
+
+**Your Approach:**
+1. **5-Phase Process**: Deep Research → Strategic Foundation → Copy Architecture → Psychological Amplification → Final Polish
+2. **Awareness Calibration**: Match your opening to where the market is, then move them to Most-Aware
+3. **Proof Hierarchy**: Stack proof from strongest (third-party credentialed) to weakest (claims)
+4. **Unique Mechanism**: Position the "why this works" as the core story, not a feature list
+5. **Narrative Arc**: Every section has tension → insight → resolution
+6. **Emotional + Logical**: Lead with emotion, support with data
+7. **Conversational Specificity**: Write like Halbert (conversational) with Ogilvy's research precision
 
 Return valid JSON only.`;
 
-  const userPrompt = `Write all copy for a ${pageType} landing page based on this strategy. The copy should be editorial-quality narrative, not generic marketing.
+  const userPrompt = `Write legendary-quality copy for a ${pageType} landing page. Apply the 33 Laws, fascination triggers, and master copywriter principles.
 
-STRATEGY:
+STRATEGY & PERSONAS:
 ${JSON.stringify(strategy, null, 2)}
+
+RESEARCH DATA:
+Company: ${research.company_name || 'Unknown'}
+Industry: ${research.industry || 'Unknown'}
+Value Props: ${JSON.stringify(research.value_propositions || [])}
+Unique Mechanism: ${research.product_research?.unique_mechanism || research.unique_differentiators?.[0] || 'N/A'}
+Mechanism Type: ${research.product_research?.mechanism_type || 'Proprietary Process'}
+Key Claims: ${JSON.stringify(research.key_claims || [])}
+Testimonials: ${JSON.stringify(research.product_research?.proof_inventory?.testimonials || research.testimonials || [])}
+Products: ${JSON.stringify(research.products_services || [])}
+Voice of Customer: ${JSON.stringify(research.customer_research?.voice_of_customer || [])}
+Objections: ${JSON.stringify(research.product_research?.key_objections || [])}
 
 BRAND VOICE:
 Tone: ${tone}
 Keywords: ${JSON.stringify(brand.brand_voice?.keywords || [])}
 Guidelines: ${JSON.stringify(brand.brand_voice?.do || [])}
 
-BUSINESS:
-Company: ${research.company_name || 'Unknown'}
-Value Props: ${JSON.stringify(research.value_propositions || [])}
-Key Claims: ${JSON.stringify(research.key_claims || [])}
-Testimonials: ${JSON.stringify(research.testimonials || [])}
-Products: ${JSON.stringify(research.products || [])}
-Differentiators: ${JSON.stringify(research.differentiators || [])}
-
 ${triggerContext}
 
-## EDITORIAL WRITING PRINCIPLES
-1. **Open with a scene, not a claim.** "It was 3 AM when Lisa's phone buzzed..." not "Introducing the revolutionary..."
-2. **Create a named protagonist** whose journey mirrors the target audience's experience
-3. **Cite specific data** — real numbers, named studies, expert quotes. Not "experts say" but "Dr. Sarah Chen, a sleep researcher at Monash University, found that..."
-4. **Use the Unique Mechanism reveal** — build tension about WHY existing solutions fail, then reveal the specific mechanism that makes this different
-5. **Each section should have a narrative arc** — tension, insight, resolution
-6. **Write body copy in full paragraphs** (3-5 sentences each), not bullet points
-7. **Include "fascination bullets"** — specific, curiosity-driven benefit statements (e.g., "The 90-second ritual that reverses years of chronic fatigue — page 7")
-8. **End with a guarantee that eliminates risk** — frame it as confidence, not desperation
+## 25 FASCINATION & BULLET FORMULAS TO USE:
+1. **Specific Number**: "The 7-minute morning ritual that..."
+2. **Hidden/Secret**: "The overlooked mechanism that..."
+3. **Counterintuitive**: "Why the opposite of what you've been told..."
+4. **Warning**: "The hidden dangers of..."
+5. **Question**: "Did you know that...?"
+6. **How-To**: "The exact 5-step process to..."
+7. **Mistake**: "The #1 mistake people make when..."
+8. **Best/Worst**: "The best way to... (or worst to avoid)"
+9. **Simple**: "It's simpler than you think..."
+10. **Story Tease**: "How [name] went from [state A] to [state B]"
+11. **Forbidden/Taboo**: "What they don't want you to know about..."
+12. **Instant/Fast**: "In just [timeframe], you'll..."
+13. **Without**: "How to get [result] without [effort/cost]"
+14. **Authority Quote**: "According to [expert], the real reason..."
+15. **Discovery**: "What we discovered after [research]..."
+16. **Comparison**: "The difference between [thing A] and [thing B]..."
+17. **Page Reference**: "[Benefit] — page 3"
+18. **Even If**: "Even if you've tried everything..."
+19. **Never**: "Why you should never..."
+20. **Truth About**: "The truth about [common belief]..."
+21. **Weird Trick**: "The weird [mechanism] that..."
+22. **Proof**: "Proven by [study/credential]..."
+23. **Fear-Based Tease**: "Before it's too late, you should know..."
+24. **Insider**: "What insiders know about..."
+25. **Magic Word/Phrase**: "The one thing that changes everything..."
 
-Return JSON with all copy variations:
+## 33 LAWS OF LEGENDARY COPY (Apply These):
+**Research Laws:** Know your market cold. VOC is gold. Proof inventory. Objections mapped.
+**Strategic Laws:** Market > Offer > Copy. Big Promise + Unique Mechanism. Proof Hierarchy.
+**Structural Laws:** Hook first. Lead hard. Build tension. Reveal mechanism. Stack proof. Handle objections. Soft CTA.
+**Writing Laws:** Conversational tone. Specificity (numbers, names, dates). Active voice. Short sentences. Named characters. Sensory details.
+**Psychological Laws:** Lead with dominant emotion. Stack triggers. Create curiosity gaps. Use loss aversion. Build status desire.
+**Closing Laws:** Risk-reversal guarantee. Urgency (without manipulation). Clear primary CTA. Multiple CTAs for different readiness levels.
+**Polish Laws:** Every word earns its place. No clichés. Read aloud. Replace vague with specific.
+
+## STRUCTURE BY PAGE TYPE:
+
+IF ${pageType} === "advertorial" THEN USE 10-SECTION ARCHITECTURE:
+1. Editorial Headline (leads with intrigue, not pitch)
+2. Byline & Credibility (establishes authority)
+3. Editorial Opening (scene-setting, no hard sell)
+4. Problem Establishment & Agitation (dimensionalize the pain state)
+5. Discovery/Pivot (the moment of realization)
+6. Unique Mechanism Reveal (HERE'S WHY this works)
+7. Solution Introduction (introducing the product/service as natural result)
+8. Proof & Testimonials (third-party credibility, case studies)
+9. Objection Handling (FAQ-style, soft)
+10. Soft CTA (editorial, benefit-driven, low pressure)
+
+IF ${pageType} === "sales_letter" THEN USE 12-SECTION ARCHITECTURE:
+1. Headline (power headline with emotional specificity or unique mechanism)
+2. Subheadline/Deck (supports with proof or curiosity)
+3. Lead (opens with scene, story, or biggest curiosity gap)
+4. Credibility (why you should listen to us)
+5. Problem Expansion (agitate and dimensionalize the pain)
+6. Unique Mechanism Reveal (THE core insight that changes everything)
+7. Solution Build-Up (how the solution works step-by-step)
+8. Product Reveal (what it is, specifically)
+9. Benefits & Fascinations (transformation bullets using 25 formulas)
+10. Proof Stack (strongest to weakest: third-party, expert, demo, testimonials, logic, claims)
+11. Offer & Guarantee (price, guarantee, risk reversal)
+12. P.S. Section (reinforce biggest benefit or curiosity hook)
+
+Return JSON with all copy sections:
 {
+  "page_type_confirmed": "advertorial or sales_letter",
+
   "headlines": {
-    "hero_headline": "string — power headline with emotional specificity",
-    "hero_subheadline": "string — supports with mechanism or proof",
-    "section_headlines": ["string — each should create curiosity"]
+    "hero_headline": "string — power headline matching awareness level, leading with benefit or intrigue",
+    "hero_subheadline": "string — supports with unique mechanism or strongest proof point",
+    "section_headlines": [
+      "string — Problem: [agitating discovery]",
+      "string — Mechanism: [The one thing that...]",
+      "string — Solution: [How to get...]",
+      "string — Proof: [Proven by...]"
+    ]
   },
+
   "hero": {
-    "above_fold_text": "string — opening narrative hook (2-3 sentences)",
-    "primary_cta_text": "string — benefit-driven CTA",
-    "secondary_cta_text": "string or null",
-    "social_proof_banner": "string — quick credibility (e.g., 'Trusted by 50,000+ Australians')"
+    "headline": "string (same as hero_headline for clarity)",
+    "subheadline": "string (same as hero_subheadline)",
+    "opening_narrative": "string (2-4 sentences — scene, story hook, or curiosity gap. Named character if possible.)",
+    "primary_cta_text": "string — benefit-driven, specific, action-oriented",
+    "secondary_cta_text": "string or null — softer alternative",
+    "social_proof_banner": "string — quick credibility banner (e.g., 'Trusted by 50,000+ Australians', '4.9★ from 2,847 reviews')"
   },
+
   "body_sections": [
     {
-      "section_name": "string",
-      "headline": "string — curiosity-driven section headline",
-      "body_copy": "string (full editorial-quality copy for this section — 3-5 paragraphs minimum, with narrative flow, named characters where appropriate, and specific data)",
-      "pull_quote": "string or null — the most powerful quote/stat from this section",
-      "cta_text": "string or null"
+      "section_name": "string (e.g., 'Problem Agitation', 'Discovery Moment', 'Mechanism Reveal', 'Proof Stack', 'Objection Handling')",
+      "section_number": "number (1, 2, 3, etc. — for advertorial/sales letter sequencing)",
+      "purpose": "string (what this section accomplishes in the buyer journey)",
+      "headline": "string — curiosity-driven, benefit-focused, or mechanism-revealing",
+      "body_copy": "string (3-5 paragraphs of editorial-quality narrative. Include: specific data, named characters where appropriate, sensory details, story arcs, dimensionalized pain/desire states. NO bullet points — full prose.)",
+      "pull_quote": "string or null — the single most powerful stat, insight, or testimony from this section",
+      "fascination_bullets": [
+        "string — use one of the 25 fascination formulas",
+        "string — use another formula"
+      ],
+      "cta_text": "string or null — soft CTA if applicable"
     }
   ],
+
   "social_proof": {
-    "stats": [{"number": "string (specific)", "label": "string (with context)"}],
-    "testimonials": [{"quote": "string (specific, detailed)", "author": "string (with credentials/location)", "result": "string (measurable outcome)"}]
+    "stats": [
+      {"number": "string (specific, with unit)", "label": "string (context)", "source": "string (where this comes from)"},
+      {"number": "87%", "label": "of customers report improved [outcome] within [timeframe]", "source": "internal study"}
+    ],
+    "testimonials": [
+      {
+        "quote": "string (specific, detailed quote — ideally 2-3 sentences with transformation)",
+        "author": "string (First name + Initial, location)",
+        "credentials": "string (what makes them credible? e.g., 'Busy parent', 'Healthcare professional')",
+        "result": "string (specific, measurable outcome: '[X] improved', 'Went from [A] to [B]')"
+      }
+    ],
+    "case_studies": [
+      {
+        "title": "string (e.g., 'How Jane Doubled Her Energy in 14 Days')",
+        "intro": "string (who was this person, what was their challenge?)",
+        "mechanism": "string (what specifically did they do?)",
+        "results": "string (measurable outcomes)"
+      }
+    ]
   },
+
   "fascination_bullets": [
-    "string — specific, curiosity-driven benefit statements"
+    "string — use 25 Formulas: Specific Number, Hidden, Counterintuitive, Warning, Question, How-To, Mistake, Best/Worst, Simple, Story, Forbidden, Instant, Without, Authority, Discovery, Comparison, Page Reference, Even If, Never, Truth About, Weird Trick, Proof, Fear, Insider, Magic Word"
   ],
+
+  "objection_handling": [
+    {
+      "objection": "string (e.g., 'Is it really going to work for me?')",
+      "response": "string (3-4 sentences handling the objection with proof, mechanism, or guarantee)"
+    }
+  ],
+
   "ctas": {
-    "primary": "string — main CTA (benefit + action)",
-    "secondary": "string — softer alternative",
-    "final": "string — urgency-driven closing CTA"
+    "primary": "string — main CTA (benefit + action, e.g., 'Start My 14-Day Free Trial')",
+    "secondary": "string — softer alternative (e.g., 'Learn More')",
+    "final": "string — closing CTA with urgency (e.g., 'Don\\'t Wait — Claim Your Spot Now')"
   },
+
   "guarantee": {
-    "headline": "string",
-    "body": "string — risk-reversal copy"
+    "headline": "string (e.g., 'Your Risk Is Completely Eliminated')",
+    "body": "string (3-4 sentences of risk-reversal copy, positioning guarantee as confidence not desperation)",
+    "terms": "string (e.g., '60-Day Money-Back Guarantee', 'Full Refund If Not 100% Satisfied')"
   },
+
+  "postscript": {
+    "ps_1": "string (reinforce biggest benefit or curiosity hook)",
+    "ps_2": "string or null (optional: urgency or scarcity angle)",
+    "ps_3": "string or null (optional: strongest proof point or final objection handle)"
+  },
+
   "meta": {
-    "title": "string — SEO optimized",
-    "description": "string — click-optimized meta description"
+    "title": "string — SEO optimized, includes primary keyword, benefit-driven",
+    "description": "string — click-optimized (155 chars max), includes curiosity hook and CTA"
   }
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 12000);
   const copyData = parseJSON(text);
   return { data: copyData, tokensUsed };
 }
