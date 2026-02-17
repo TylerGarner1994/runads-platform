@@ -10,6 +10,7 @@ import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psycho
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
 import { savePage as savePageToStorage, getClient, updateClient } from '../lib/storage.js';
 import { deployPage as deployToGitHubPages, getPagesUrl } from '../lib/github.js';
+import { getResearchSkillContext, getStrategySkillContext, getCopySkillContext, getBrandSkillContext } from '../lib/skill-loader.js';
 
 // ============================================================
 // ANTHROPIC API HELPER
@@ -129,8 +130,12 @@ Your job is to surface the 88-question avatar framework summary including:
 
 Return valid JSON only.`;
 
+  // Load full skill frameworks from /skills/ directory
+  const researchSkillContext = getResearchSkillContext();
+
   const userPrompt = `Conduct PhD-level market research on this business. Extract competitive intelligence, customer insights, market dynamics, and proof elements.
 
+${researchSkillContext ? '## SKILL REFERENCE FRAMEWORKS (follow these methodologies):\n' + researchSkillContext + '\n\n---\n' : ''}
 ${url ? 'Website URL: ' + url : ''}
 ${productName ? '\nProduct/Service: ' + productName : ''}
 ${websiteData.meta ? '\nPage Title: ' + websiteData.meta.title + '\nMeta Description: ' + websiteData.meta.description : ''}
@@ -210,7 +215,13 @@ async function runBrand(job) {
     }
   }
 
-  const systemPrompt = `You are an expert brand designer and visual identity specialist. Extract and define a complete brand guide from the provided information. Return valid JSON only.`;
+  // Load brand extraction skill framework
+  const brandSkillContext = getBrandSkillContext();
+
+  const systemPrompt = `You are an expert brand designer and visual identity specialist. Extract and define a complete brand guide from the provided information.
+${brandSkillContext ? '\nFollow this skill framework for extraction methodology:\n' + brandSkillContext.substring(0, 6000) : ''}
+
+Return valid JSON only.`;
 
   const userPrompt = `Create a comprehensive brand guide for this business.
 
@@ -272,6 +283,9 @@ async function runStrategy(job) {
   const triggerContext = buildTriggerContext(pageType, 'solution_aware', 8);
   const stackContext = getStrategyContext(pageType);
 
+  // Load persona-architect and research question skill frameworks
+  const strategySkillContext = getStrategySkillContext();
+
   const systemPrompt = `You are an elite conversion strategist combining:
 - **Eugene Schwartz** (awareness levels, sophistication calibration)
 - **Gary Halbert** (hooks, hooks, hooks — leading with strongest hooks)
@@ -323,6 +337,8 @@ Key Objections: ${JSON.stringify(research.product_research?.key_objections || []
 ${triggerContext}
 
 ${stackContext}
+
+${strategySkillContext ? '## SKILL REFERENCE FRAMEWORKS (follow these methodologies for persona development):\n' + strategySkillContext + '\n\n---\n' : ''}
 
 DELIVERABLE: Return JSON with persona architecture and page strategy:
 {
@@ -428,6 +444,9 @@ async function runCopy(job) {
 
   const triggerContext = buildTriggerContext(pageType, 'solution_aware', 6);
 
+  // Load the full legendary-sales-letter skill framework + references
+  const copySkillContext = getCopySkillContext(pageType);
+
   const systemPrompt = `You are a legendary master copywriter synthesizing the entire history of direct response brilliance:
 
 **Foundation:** You cannot create desire — only channel it. Market > Offer > Copy.
@@ -515,6 +534,8 @@ ${triggerContext}
 **Psychological Laws:** Lead with dominant emotion. Stack triggers. Create curiosity gaps. Use loss aversion. Build status desire.
 **Closing Laws:** Risk-reversal guarantee. Urgency (without manipulation). Clear primary CTA. Multiple CTAs for different readiness levels.
 **Polish Laws:** Every word earns its place. No clichés. Read aloud. Replace vague with specific.
+
+${copySkillContext ? '## FULL SKILL REFERENCE FRAMEWORKS (use these detailed methodologies):\n' + copySkillContext + '\n\n---\n' : ''}
 
 ## STRUCTURE BY PAGE TYPE:
 
