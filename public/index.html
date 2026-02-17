@@ -1535,6 +1535,26 @@ renderClientDetail(contentArea, data);
 })
 .catch(err => console.error('Failed to load client:', err));
 }
+function renderClaimsHtml(claims, clientId) {
+  if (!claims || claims.length === 0) return '';
+  var catColors = { 'CLAIM': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }, 'TESTIMONIAL': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }, 'STATISTIC': { bg: '#faf5ff', color: '#7c3aed', border: '#ddd6fe' } };
+  return claims.map(function(claim, i) {
+    var cc = catColors[claim.category] || catColors['CLAIM'];
+    var sourceHtml = claim.source ? '<div style="font-size:12px;color:#64748b;margin-top:6px;">Source: <a href="' + claim.source + '" target="_blank" style="color:' + cc.color + ';text-decoration:underline;">' + claim.source + '</a></div>' : '';
+    return '<div class="claim-item" data-category="' + (claim.category || 'CLAIM') + '" style="padding:16px;border:1px solid ' + cc.border + ';border-radius:8px;margin-bottom:10px;background:' + cc.bg + ';">' +
+      '<div style="display:flex;justify-content:space-between;align-items:start;">' +
+        '<div style="flex:1;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+            '<span style="padding:2px 8px;background:' + cc.color + ';color:#fff;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;">' + (claim.category || 'CLAIM') + '</span>' +
+          '</div>' +
+          '<div style="font-weight:500;font-size:14px;line-height:1.5;color:#1e293b;">' + (claim.text || claim.claim || '') + '</div>' +
+          sourceHtml +
+        '</div>' +
+        '<button onclick="removeClaim(\'' + clientId + '\', ' + i + ')" style="padding:4px 8px;background:none;border:1px solid #fecaca;border-radius:4px;color:#ef4444;font-size:11px;cursor:pointer;flex-shrink:0;margin-left:12px;">Remove</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
 function renderClientDetail(container, client){
 const html = `
 <div style="display:flex;gap:24px;">
@@ -1825,25 +1845,8 @@ ${(!client.audiences || client.audiences.length === 0) ? '<div style="text-align
 <button onclick="filterClaims('STATISTIC')" class="claim-filter" style="padding:4px 12px;border-radius:16px;border:1px solid #e2e8f0;background:#fff;font-size:12px;font-weight:500;cursor:pointer;">Statistics</button>
 </div>
 <div id="claimsList">
-${(client.claims || []).map((claim, i) => {
-const catColors = { 'CLAIM': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }, 'TESTIMONIAL': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }, 'STATISTIC': { bg: '#faf5ff', color: '#7c3aed', border: '#ddd6fe' } };
-const cc = catColors[claim.category] || catColors['CLAIM'];
-return \`
-<div class="claim-item" data-category="\${claim.category || 'CLAIM'}" style="padding:16px;border:1px solid \${cc.border};border-radius:8px;margin-bottom:10px;background:\${cc.bg};">
-<div style="display:flex;justify-content:space-between;align-items:start;">
-<div style="flex:1;">
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-<span style="padding:2px 8px;background:\${cc.color};color:#fff;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;">\${claim.category || 'CLAIM'}</span>
-</div>
-<div style="font-weight:500;font-size:14px;line-height:1.5;color:#1e293b;">\${claim.text || claim.claim || ''}</div>
-\${claim.source ? \`<div style="font-size:12px;color:#64748b;margin-top:6px;">Source: <a href="\${claim.source}" target="_blank" style="color:\${cc.color};text-decoration:underline;">\${claim.source}</a></div>\` : ''}
-</div>
-<button onclick="removeClaim('\${client.id}', \${i})" style="padding:4px 8px;background:none;border:1px solid #fecaca;border-radius:4px;color:#ef4444;font-size:11px;cursor:pointer;flex-shrink:0;margin-left:12px;">Remove</button>
-</div>
-</div>
-\`;
-}).join('')}
-${(!client.claims || client.claims.length === 0) ? '<div style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;">No verified claims yet. Click "Scrape from Website" to auto-extract claims, or add them manually.</div>' : ''}
+${renderClaimsHtml(client.claims || [], client.id)}
+${(!client.claims || client.claims.length === 0) ? '<div style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;">No verified claims yet. Click &quot;Scrape from Website&quot; to auto-extract claims, or add them manually.</div>' : ''}
 </div>
 </div>
 </div>
