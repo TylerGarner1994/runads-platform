@@ -5,7 +5,8 @@
 export const config = { maxDuration: 300 };
 
 import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, getStepLabel, PIPELINE_STEPS } from '../lib/job-manager.js';
-import { scrapeWebsite, extractBrandAssets, extractImages, fetchPage } from '../lib/website-scraper.js';
+import { scrapeWebsite, scrapeMultiPage, extractBrandAssets, extractImages, fetchPage } from '../lib/website-scraper.js';
+import { isGeminiAvailable, extractBusinessDataWithGemini } from '../lib/gemini.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
 import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
 import { savePage as savePageToStorage, getClient, updateClient, saveVerifiedClaims, getVerifiedClaims } from '../lib/storage.js';
@@ -97,16 +98,39 @@ async function saveGitHubFile(path, data, sha, message) {
 // ============================================================
 
 // STEP 1: RESEARCH - Deep website analysis (DR-MARKET-RESEARCH Framework)
+// Now uses multi-page scraping + Gemini for initial extraction (faster/cheaper)
+// Falls back to single-page + Claude-only if Gemini unavailable
 async function runResearch(job) {
   const url = job.input_data.url || job.input_data.productUrl;
   const productName = job.input_data.productName;
 
+  // Use multi-page scraping for richer data (main page + up to 4 sub-pages)
   let websiteData = {};
   if (url) {
     try {
-      websiteData = await scrapeWebsite(url);
+      websiteData = await scrapeMultiPage(url, 4);
+      console.log(`Multi-page scrape complete: ${websiteData.pagesScraped} pages scraped for ${url}`);
     } catch (e) {
-      websiteData = { error: e.message, url };
+      console.warn(`Multi-page scrape failed, falling back to single page: ${e.message}`);
+      try {
+        websiteData = await scrapeWebsite(url);
+      } catch (e2) {
+        websiteData = { error: e2.message, url };
+      }
+    }
+  }
+
+  // Try Gemini for initial structured extraction (faster + cheaper than Claude)
+  let geminiData = null;
+  let geminiTokens = 0;
+  if (websiteData.text && isGeminiAvailable()) {
+    try {
+      const geminiResult = await extractBusinessDataWithGemini(websiteData.text, url);
+      geminiData = geminiResult.data;
+      geminiTokens = geminiResult.tokensUsed;
+      console.log(`Gemini extraction complete: ${geminiTokens} tokens used`);
+    } catch (e) {
+      console.warn(`Gemini extraction failed, using Claude-only: ${e.message}`);
     }
   }
 
@@ -133,15 +157,35 @@ Return valid JSON only.`;
   // Load full skill frameworks from /skills/ directory
   const researchSkillContext = getResearchSkillContext();
 
+  // Build Gemini pre-extraction context if available
+  const geminiContext = geminiData ? `
+## PRE-EXTRACTED BUSINESS DATA (from Gemini — use as starting point, enhance with deeper analysis):
+Company: ${geminiData.company_name || 'Unknown'}
+Industry: ${geminiData.industry || 'Unknown'}
+Tagline: ${geminiData.tagline || 'N/A'}
+Description: ${geminiData.description || 'N/A'}
+Value Props: ${JSON.stringify(geminiData.value_propositions || [])}
+Products: ${JSON.stringify(geminiData.products_services || [])}
+Testimonials Found: ${(geminiData.testimonials || []).length}
+Statistics Found: ${(geminiData.statistics || []).length}
+Trust Signals: ${JSON.stringify(geminiData.trust_signals || [])}
+Target Audiences: ${JSON.stringify(geminiData.target_audiences || [])}
+Brand Voice: ${JSON.stringify(geminiData.brand_voice || {})}
+Key Objections: ${JSON.stringify(geminiData.key_objections || [])}
+---
+` : '';
+
   const userPrompt = `Conduct PhD-level market research on this business. Extract competitive intelligence, customer insights, market dynamics, and proof elements.
 
 ${researchSkillContext ? '## SKILL REFERENCE FRAMEWORKS (follow these methodologies):\n' + researchSkillContext + '\n\n---\n' : ''}
+${geminiContext}
 ${url ? 'Website URL: ' + url : ''}
 ${productName ? '\nProduct/Service: ' + productName : ''}
 ${websiteData.meta ? '\nPage Title: ' + websiteData.meta.title + '\nMeta Description: ' + websiteData.meta.description : ''}
-${websiteData.text ? '\nWebsite Content (excerpt):\n' + websiteData.text.substring(0, 12000) : ''}
+${websiteData.pagesScraped ? '\nPages Scraped: ' + websiteData.pagesScraped + ' (main page + ' + (websiteData.subPages?.length || 0) + ' sub-pages)' : ''}
+${websiteData.text ? '\nWebsite Content (multi-page excerpt):\n' + websiteData.text.substring(0, 15000) : ''}
 ${websiteData.products?.length ? '\nProducts found: ' + websiteData.products.map(p => p.name).join(', ') : ''}
-${websiteData.testimonials?.length ? '\nTestimonials found: ' + websiteData.testimonials.length : ''}
+${websiteData.testimonials?.length ? '\nTestimonials found: ' + websiteData.testimonials.length + '\n' + websiteData.testimonials.slice(0, 5).map(t => '  - "' + t.quote.substring(0, 100) + '"').join('\n') : ''}
 
 Return a JSON object with these fields:
 {
@@ -197,6 +241,35 @@ Return a JSON object with these fields:
   researchData._scrapedFonts = websiteData.fonts || [];
   researchData._scrapedImages = websiteData.images || [];
   researchData._scrapedTestimonials = websiteData.testimonials || [];
+  researchData._pagesScraped = websiteData.pagesScraped || 1;
+  researchData._subPages = websiteData.subPages || [];
+  researchData._geminiUsed = !!geminiData;
+  researchData._geminiTokens = geminiTokens;
+
+  // Merge Gemini-extracted testimonials and statistics into research data if not already captured
+  if (geminiData) {
+    // Merge Gemini testimonials into proof inventory
+    const existingTestimonials = researchData.product_research?.proof_inventory?.testimonials || [];
+    const geminiTestimonials = (geminiData.testimonials || []).filter(gt =>
+      !existingTestimonials.some(et => et.quote && gt.quote && et.quote.substring(0, 50) === gt.quote.substring(0, 50))
+    );
+    if (geminiTestimonials.length > 0 && researchData.product_research?.proof_inventory) {
+      researchData.product_research.proof_inventory.testimonials = [
+        ...existingTestimonials, ...geminiTestimonials
+      ];
+    }
+
+    // Merge Gemini statistics into data_points
+    const existingDataPoints = researchData.product_research?.proof_inventory?.data_points || [];
+    const geminiStats = (geminiData.statistics || []).map(s => s.text || s).filter(s =>
+      !existingDataPoints.some(dp => typeof dp === 'string' && dp.includes(s.substring(0, 20)))
+    );
+    if (geminiStats.length > 0 && researchData.product_research?.proof_inventory) {
+      researchData.product_research.proof_inventory.data_points = [
+        ...existingDataPoints, ...geminiStats
+      ];
+    }
+  }
 
   // Auto-populate verified_claims table from research findings
   if (job.client_id) {
@@ -287,7 +360,7 @@ Return a JSON object with these fields:
     }
   }
 
-  return { data: researchData, tokensUsed };
+  return { data: researchData, tokensUsed: tokensUsed + geminiTokens };
 }
 
 // STEP 2: BRAND - Extract brand identity
