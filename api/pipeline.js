@@ -8,7 +8,7 @@ import { createJob, getJob, startJobStep, updateJobStep, failJob, getProgress, g
 import { scrapeWebsite, scrapeMultiPage, extractBrandAssets, extractImages, fetchPage } from '../lib/website-scraper.js';
 import { isGeminiAvailable, extractBusinessDataWithGemini } from '../lib/gemini.js';
 import { buildTriggerContext, getStrategyContext, TRIGGERS } from '../lib/psychological-triggers.js';
-import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions } from '../lib/design-system.js';
+import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getPageTypeDesignInstructions, getBaseStyles } from '../lib/design-system.js';
 import { savePage as savePageToStorage, getClient, updateClient, saveVerifiedClaims, getVerifiedClaims } from '../lib/storage.js';
 import { deployPage as deployToGitHubPages, getPagesUrl } from '../lib/github.js';
 import { getResearchSkillContext, getStrategySkillContext, getCopySkillContext, getBrandSkillContext } from '../lib/skill-loader.js';
@@ -830,140 +830,177 @@ Return JSON with all copy sections:
   return { data: copyData, tokensUsed };
 }
 
-// STEP 5: DESIGN - Build complete HTML using Design System templates
+// STEP 5: DESIGN - Generate complete HTML page (full-generation approach)
+// Claude generates the entire page HTML with full creative control,
+// using our CSS variable system and base styles for consistency.
 async function runDesign(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
   const strategy = job.strategy_data || {};
   const copy = job.copy_data || {};
   const pageType = job.page_type;
-
-  // Step 1: Get HTML skeleton template from design system
-  const template = getPageTemplate(pageType, brand);
-
-  // Step 2: Build component sections (stats, testimonials, CTAs, FAQs)
-  const statsSection = getComponent('stat-bar', { stats: copy.social_proof?.stats });
-  const testimonialsSection = getComponent('testimonial-grid', {
-    testimonials: copy.social_proof?.testimonials?.map(t => ({
-      quote: t.quote, author: t.author, role: t.result || '', stars: 5
-    })),
-    headline: 'What Our Customers Say'
-  });
-  const midCtaSection = getComponent('cta-block', {
-    headline: copy.ctas?.secondary || 'Ready to Get Started?',
-    subheadline: copy.hero?.above_fold_text || '',
-    cta_text: copy.ctas?.primary || 'Get Started',
-    dark: false
-  });
-  const finalCtaSection = getComponent('cta-block', {
-    headline: copy.ctas?.final || 'Don\'t Wait - Start Today',
-    subheadline: '',
-    cta_text: copy.ctas?.primary || 'Get Started Now',
-    dark: true
-  });
-  const faqSection = getComponent('faq-accordion', {
-    items: (copy.body_sections || []).filter(s =>
-      s.section_name?.toLowerCase().includes('faq') || s.section_name?.toLowerCase().includes('question')
-    ).map(s => ({ question: s.headline, answer: s.body_copy })),
-    headline: 'Frequently Asked Questions'
-  });
-  const benefitsSection = getComponent('benefits-list', {
-    benefits: (copy.body_sections || []).filter(s =>
-      s.section_name?.toLowerCase().includes('benefit') || s.section_name?.toLowerCase().includes('feature')
-    ).map(s => ({ title: s.headline, desc: s.body_copy?.substring(0, 200) })),
-    headline: strategy.sections?.find(s => s.section_name?.toLowerCase().includes('benefit'))?.content_brief || 'Why Choose Us'
-  });
-
-  // Step 3: Ask Claude to populate the template with content (NOT generate structure)
   const companyName = research.company_name || 'Our Company';
 
-  const systemPrompt = `You are an elite landing page content specialist creating Unicorn Marketers-quality pages. You will receive an HTML template with {{PLACEHOLDER}} slots. Your job is to fill those slots with compelling, editorial-quality content using the copy data provided.
+  // Build the CSS foundation — Claude will embed this in the page
+  const brandCSS = generateBrandCSS(brand);
+  const baseStyles = getBaseStyles();
 
-KEY QUALITY GUIDELINES:
-- Write in a professional editorial tone — this should read like a high-end magazine article, NOT like an ad
-- Use rich HTML components in body sections: pullquotes (<div class="pullquote"><p>quote</p><cite>— Source</cite></div>), highlight boxes (<div class="highlight-box"><p>key insight</p></div>), and quote blocks (<div class="quote-block"><p class="quote-text">"quote"</p><p class="quote-author">— Name</p></div>)
-- Include specific, data-driven statistics with real numbers (not generic claims)
-- HERO_BODY should start with a compelling hook — the template uses a drop cap on the first letter
-- Every section should have 3-5 paragraphs of substantive, story-driven copy
-- Testimonials should include first name, last initial, and a specific result
-- Never leave any placeholder unfilled — generate credible content for every slot
+  // Determine fonts — use brand fonts if available, otherwise pair editorial fonts
+  const headingFont = brand.typography?.heading_font || brand.style_guide?.heading_font || '';
+  const bodyFont = brand.typography?.body_font || brand.style_guide?.body_font || '';
 
-Return a JSON object mapping each placeholder name to its HTML content. Only return valid JSON.`;
+  // Choose Google Fonts link based on brand or editorial defaults
+  let googleFontsLink;
+  if (headingFont && headingFont !== "'Inter', sans-serif") {
+    const cleanHeading = headingFont.replace(/'/g, '').split(',')[0].trim();
+    const cleanBody = bodyFont ? bodyFont.replace(/'/g, '').split(',')[0].trim() : 'Inter';
+    googleFontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(cleanHeading)}:wght@400;500;600;700;800&family=${encodeURIComponent(cleanBody)}:wght@300;400;500;600;700&display=swap" rel="stylesheet">`;
+  } else {
+    // Default editorial font pairing for high-quality output
+    const fontPairings = {
+      advertorial: { heading: 'Playfair Display', body: 'Source Sans Pro' },
+      'sales-letter': { heading: 'Merriweather', body: 'Open Sans' },
+      listicle: { heading: 'DM Sans', body: 'Inter' },
+      quiz: { heading: 'Poppins', body: 'Inter' },
+      'vip-signup': { heading: 'Cormorant Garamond', body: 'Montserrat' },
+      calculator: { heading: 'Space Grotesk', body: 'Inter' },
+    };
+    const pairing = fontPairings[pageType] || fontPairings.advertorial;
+    googleFontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(pairing.heading)}:wght@400;500;600;700;800&family=${encodeURIComponent(pairing.body)}:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">`;
+    // Override CSS variables for the font pairing
+    brand._designFontOverride = {
+      heading: `'${pairing.heading}', Georgia, serif`,
+      body: `'${pairing.body}', 'Inter', sans-serif`
+    };
+  }
 
-  const userPrompt = `Fill the content slots in this ${pageType} page template.
+  // Collect real images from scraper
+  const scrapedImages = research._scrapedImages || [];
+  const imageContext = scrapedImages.length > 0
+    ? `\n## REAL PRODUCT IMAGES (use these — do NOT use placeholder URLs):\n${scrapedImages.slice(0, 10).map((img, i) => `${i + 1}. ${img.url} (${img.category}${img.alt ? ', alt: ' + img.alt : ''})`).join('\n')}\nIMPORTANT: Use these real image URLs in <img> tags. Do NOT use placeholder.com, via.placeholder, picsum, or similar dummy image services.\n`
+    : '\nNote: No product images were scraped. Use background colors, gradients, and icon-based designs instead of placeholder images. Do NOT use placeholder.com or dummy image URLs.\n';
 
-TEMPLATE SLOTS TO FILL:
-${template.slots.join(', ')}
+  const systemPrompt = `You are an elite landing page designer and developer who creates stunning, conversion-optimized pages. You generate COMPLETE, production-ready HTML with embedded CSS.
 
-COPY DATA:
+Your pages are indistinguishable from those created by top design agencies. They feature:
+- Magazine-quality editorial layouts
+- Sophisticated typography with proper font pairing
+- Rich visual hierarchy using whitespace, color, and scale
+- Interactive elements (FAQ accordions, scroll animations, progress bars)
+- Mobile-first responsive design
+- Conversion-optimized CTAs and social proof placement
+
+You will receive copy data, strategy, and brand guidelines. Generate the COMPLETE HTML page.
+
+CRITICAL RULES:
+1. Return ONLY the complete HTML document — starting with <!DOCTYPE html> and ending with </html>
+2. ALL CSS must be embedded in a <style> tag — no external stylesheets except Google Fonts
+3. ALL JavaScript must be embedded in <script> tags — no external scripts
+4. Use the CSS variable system provided (brand colors, spacing, shadows)
+5. Include interactive features: FAQ accordion toggle, scroll animations, reading progress bar
+6. Forms must post to "https://runads-platform.vercel.app/api/track" with a hidden input name="page_id" value="{{PAGE_ID}}"
+7. NEVER use placeholder image URLs. Either use real scraped images (if provided) or use CSS-based visual treatments
+8. Every statistic, testimonial, and claim must come from the copy data — fill every section with real content
+9. DO NOT leave any section empty or with placeholder text like "Lorem ipsum" or "{{PLACEHOLDER}}"`;
+
+  const userPrompt = `Create a stunning, conversion-optimized ${pageType} landing page.
+
+## GOOGLE FONTS LINK (include this exactly in <head>):
+${googleFontsLink}
+
+## CSS FOUNDATION (embed this in your <style> tag, then add page-specific styles after):
+${brandCSS}
+${brand._designFontOverride ? `
+/* Font Override */
+:root {
+  --heading-font: ${brand._designFontOverride.heading};
+  --body-font: ${brand._designFontOverride.body};
+}` : ''}
+${baseStyles}
+
+## COMPANY & BRAND
+Company: ${companyName}
+Industry: ${research.industry || 'Not specified'}
+Tone: ${brand.brand_voice?.tone || job.input_data.tone || 'Professional & Trustworthy'}
+${brand.brand_voice?.keywords?.length ? `Keywords: ${brand.brand_voice.keywords.join(', ')}` : ''}
+${brand.brand_voice?.do?.length ? `Voice Do's: ${brand.brand_voice.do.join('; ')}` : ''}
+
+## COPY DATA (use this content to fill all sections):
 ${JSON.stringify(copy, null, 2)}
 
-STRATEGY:
+## STRATEGY:
 ${JSON.stringify(strategy, null, 2)}
 
-BRAND:
-Company: ${companyName}
-Industry: ${research.industry || ''}
-Tone: ${brand.brand_voice?.tone || job.input_data.tone || 'Professional'}
+## RESEARCH:
+Value Propositions: ${JSON.stringify(research.value_propositions || [])}
+Testimonials: ${JSON.stringify(research.product_research?.proof_inventory?.testimonials || research.testimonials || [])}
+Products: ${JSON.stringify(research.products_services || [])}
+Key Claims: ${JSON.stringify(research.key_claims || [])}
+${imageContext}
 
-${(research._scrapedImages || []).length > 0 ? `AVAILABLE PRODUCT IMAGES FROM CLIENT WEBSITE (use these instead of placeholders):
-${(research._scrapedImages || []).slice(0, 8).map((img, i) => `${i + 1}. ${img.url} (${img.category}${img.alt ? ', alt: ' + img.alt : ''})`).join('\n')}
-IMPORTANT: Use these real image URLs in <img> tags wherever an image is needed. Do NOT use placeholder.com or similar dummy images.` : ''}
-
+## PAGE TYPE: ${pageType.toUpperCase()}
 ${getPageTypeDesignInstructions(pageType)}
 
-Return a JSON object with ALL placeholders filled. For body/section placeholders, use <p> tags for paragraphs. For list items, use appropriate HTML. Example:
-{
-  "META_TITLE": "Page Title Here",
-  "META_DESCRIPTION": "Description here",
-  "COMPANY_NAME": "${companyName}",
-  "HEADLINE": "Your Compelling Headline",
-  "SUBHEADLINE": "Supporting text here",
-  "BADGE_TEXT": "SPECIAL REPORT",
-  "NAV_CTA": "Get Started",
-  "CTA_TEXT": "Start Now",
-  "HERO_BODY": "<p>Opening paragraph...</p><p>Second paragraph...</p>",
-  ...etc for ALL slots
-}
+## DESIGN REQUIREMENTS:
 
-IMPORTANT: Every {{PLACEHOLDER}} in the template must have a corresponding key in your JSON response. Use the copy data to fill each slot with persuasive, on-brand content. For sections not directly covered by copy data, generate appropriate content based on the strategy.`;
+### Structure for ${pageType === 'advertorial' ? 'ADVERTORIAL' : pageType.toUpperCase()}:
+${pageType === 'advertorial' ? `
+1. Reading progress bar (fixed top, accent color, updates on scroll)
+2. Sticky navigation with company name + CTA button
+3. Hero section: category badge, editorial headline, subheadline, author byline with date
+4. Hero image (use real product image if available, otherwise use a styled gradient/pattern background)
+5. Opening narrative with drop cap on first letter
+6. Statistics bar (3 key metrics with large numbers)
+7. Problem section with editorial body, pullquotes, highlight boxes
+8. Mid-article CTA
+9. Solution section on dark background
+10. Science/mechanism section with highlight boxes and data callouts
+11. Product showcase (dark card with features list, CTA, guarantee)
+12. Testimonials grid (3 cards with stars, quotes, author names, verified badges)
+13. FAQ accordion (clickable questions that expand/collapse)
+14. Final CTA section
+15. Footer with disclaimer/disclosure` : `
+Follow standard ${pageType} layout conventions with proper section hierarchy.`}
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 8192);
-  const contentMap = parseJSON(text);
+### Visual Quality Standards:
+- Use the heading font for h1/h2/h3 and body font for paragraphs
+- Proper line height (1.7-1.8 for body, 1.1-1.2 for headings)
+- Section padding: 80-100px vertical on desktop, 48-60px on mobile
+- Max content width: 800px for editorial content, 1200px for full-width sections
+- Use CSS classes from the base styles: .section, .section-dark, .section-alt, .container, .container-narrow, .cta-btn, .cta-btn-dark, .testimonial-card, .stat-item, .faq-item, .highlight-box, .pullquote, .badge, .article-body, .drop-cap, etc.
+- Include hover effects on cards (translateY(-4px) + shadow)
+- Scroll animations: elements fade in from below as they enter viewport
+- FAQ items toggle open/close on click
 
-  // Step 4: Populate the template with Claude's content
-  let html = template.html;
+### Critical Quality Checks:
+- Every <img> must have a descriptive alt attribute
+- Include viewport meta tag
+- Include Open Graph meta tags
+- All text must be real content from the copy data — NO placeholders
+- Statistics must have actual numbers (from copy data social_proof.stats)
+- Testimonials must have real quotes and names (from copy data social_proof.testimonials)
+- CTA buttons must use text from copy data ctas object
 
-  // Build product showcase for advertorial pages
-  const productSection = pageType === 'advertorial' ? getComponent('product-showcase', {
-    label: research.industry || 'Featured Product',
-    headline: research.company_name || copy.meta?.title || 'Our Product',
-    description: copy.hero?.above_fold_text || '',
-    features: (research.value_propositions || []).slice(0, 4),
-    cta_text: copy.ctas?.primary || 'Try It Now',
-    guarantee_text: '60-Day Money Back Guarantee'
-  }) : '';
+Return the COMPLETE HTML document. Nothing else.`;
 
-  // Add pre-built component sections
-  const componentMap = {
-    STATS_SECTION: statsSection,
-    MID_CTA_SECTION: midCtaSection,
-    FINAL_CTA_SECTION: finalCtaSection,
-    TESTIMONIALS_SECTION: testimonialsSection,
-    FAQ_SECTION: faqSection,
-    BENEFITS_SECTION: benefitsSection,
-    RESULTS_SECTION: statsSection,
-    PRODUCT_SECTION: productSection,
-  };
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 16000);
 
-  // First inject components
-  html = populateTemplate(html, componentMap);
-  // Then inject Claude-generated content
-  html = populateTemplate(html, contentMap);
-  // Fill any remaining placeholders with empty strings
-  html = html.replace(/\{\{[A-Z_]+\}\}/g, '');
+  // Clean up the response — extract just the HTML
+  let html = text;
+  // Remove markdown code blocks if present
+  html = html.replace(/^```html?\s*/i, '').replace(/\s*```$/i, '');
+  // Ensure it starts with DOCTYPE
+  if (!html.trim().startsWith('<!DOCTYPE') && !html.trim().startsWith('<html')) {
+    const docIdx = html.indexOf('<!DOCTYPE');
+    const htmlIdx = html.indexOf('<html');
+    const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
+    if (startIdx > 0) html = html.substring(startIdx);
+  }
+  // Ensure it ends with </html>
+  const htmlEndIdx = html.lastIndexOf('</html>');
+  if (htmlEndIdx > 0) html = html.substring(0, htmlEndIdx + 7);
 
-  return { data: { html, template_type: pageType, design_system_version: '3.0' }, tokensUsed };
+  return { data: { html, template_type: pageType, design_system_version: '4.0' }, tokensUsed };
 }
 
 // STEP 6: FACTCHECK - Verify claims against verified_claims database
@@ -1168,31 +1205,31 @@ async function runAssembly(job) {
   const pageType = job.page_type;
   const companyName = research.company_name || 'Landing Page';
 
-  // Remove any remaining [STAT REMOVED - UNVERIFIED] markers with clean alternatives
+  // Remove any remaining [STAT REMOVED - UNVERIFIED] markers
   html = html.replace(/\[STAT REMOVED - UNVERIFIED\]/g, '');
+  html = html.replace(/\[TESTIMONIAL REMOVED - UNVERIFIED\]/g, '');
+
+  // Strip ANY remaining {{PLACEHOLDER}} patterns (from old template system or missed slots)
+  html = html.replace(/\{\{[A-Z0-9_]+\}\}/g, '');
 
   // ── Inject real product images from website scrape ──
   const scrapedImages = research._scrapedImages || [];
   if (scrapedImages.length > 0) {
-    // Categorize available images
     const productImages = scrapedImages.filter(i => i.category === 'product');
     const heroImages = scrapedImages.filter(i => i.category === 'hero');
     const galleryImages = scrapedImages.filter(i => i.category === 'gallery');
     const featureImages = scrapedImages.filter(i => i.category === 'feature');
     const allUsable = [...productImages, ...heroImages, ...galleryImages, ...featureImages, ...scrapedImages.filter(i => i.category === 'general')];
 
-    // Replace placeholder image patterns with real images
-    // Common patterns: placeholder.com, via.placeholder, placehold.it, unsplash source, picsum
-    const placeholderPattern = /https?:\/\/(via\.placeholder\.com|placehold\.it|placeholder\.com|source\.unsplash\.com|picsum\.photos|dummyimage\.com)[^\s"')]+/gi;
+    // Replace placeholder/dummy image URLs with real images
+    const placeholderPattern = /https?:\/\/(via\.placeholder\.com|placehold\.it|placeholder\.com|source\.unsplash\.com|picsum\.photos|dummyimage\.com|placeimg\.com|loremflickr\.com)[^\s"')]+/gi;
     let imgIndex = 0;
     html = html.replace(placeholderPattern, () => {
-      if (imgIndex < allUsable.length) {
-        return allUsable[imgIndex++].url;
-      }
+      if (imgIndex < allUsable.length) return allUsable[imgIndex++].url;
       return allUsable.length > 0 ? allUsable[0].url : '';
     });
 
-    // Also replace data-placeholder-image attributes (custom pattern for our templates)
+    // Replace data-placeholder-image attributes
     html = html.replace(/data-placeholder-image="([^"]*)"/gi, (match, type) => {
       let img;
       if (type === 'product' && productImages.length > 0) img = productImages[0];
@@ -1201,27 +1238,22 @@ async function runAssembly(job) {
       return img ? `src="${img.url}" alt="${img.alt || companyName}"` : match;
     });
 
-    // Replace generic "product-image" class img src with product images
+    // Replace product-class img src
     const productImgPattern = /(<img[^>]*class="[^"]*product[^"]*"[^>]*src=")([^"]+)(")/gi;
     let pIdx = 0;
     html = html.replace(productImgPattern, (match, before, src, after) => {
-      if (pIdx < productImages.length) {
-        return before + productImages[pIdx++].url + after;
-      } else if (allUsable.length > 0) {
-        return before + allUsable[0].url + after;
-      }
+      if (pIdx < productImages.length) return before + productImages[pIdx++].url + after;
+      else if (allUsable.length > 0) return before + allUsable[0].url + after;
       return match;
     });
-
-    // Inject an image gallery section if we have 3+ product/gallery images and there's a {{PRODUCT_IMAGES}} slot
-    if (allUsable.length >= 3 && html.includes('{{PRODUCT_IMAGES}}')) {
-      const galleryHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;padding:24px 0;">
-        ${allUsable.slice(0, 6).map(img => `<img src="${img.url}" alt="${img.alt || companyName}" style="width:100%;border-radius:12px;object-fit:cover;aspect-ratio:1;" loading="lazy">`).join('\n        ')}
-      </div>`;
-      html = html.replace('{{PRODUCT_IMAGES}}', galleryHtml);
-    }
-    html = html.replace('{{PRODUCT_IMAGES}}', '');
   }
+
+  // Remove any empty image containers (gray boxes with no content)
+  // Pattern: div with min-height that only contains whitespace or a span with placeholder text
+  html = html.replace(/<div[^>]*style="[^"]*min-height:\s*\d+px[^"]*"[^>]*>\s*<span[^>]*style="[^"]*color:\s*var\(--text-light\)[^"]*"[^>]*>\s*<\/span>\s*<\/div>/gi, '');
+
+  // Remove img tags with empty/broken src
+  html = html.replace(/<img[^>]*src="\s*"[^>]*>/gi, '');
 
   // Generate a slug
   const slug = `${pageType}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50)}-${Date.now().toString(36)}`;
