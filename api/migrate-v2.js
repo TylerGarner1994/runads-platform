@@ -181,6 +181,9 @@ export default async function handler(req, res) {
   await runMigration('Add page_templates.avg_conversion_rate', sql`
     ALTER TABLE page_templates ADD COLUMN IF NOT EXISTS avg_conversion_rate NUMERIC
   `);
+  await runMigration('Drop NOT NULL on page_templates.page_type', sql`
+    ALTER TABLE page_templates ALTER COLUMN page_type DROP NOT NULL
+  `);
 
   return res.status(200).json({
     success: errors.length === 0,
