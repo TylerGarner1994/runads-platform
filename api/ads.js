@@ -1,6 +1,6 @@
-// RunAds - Enhanced Meta Ad Generator (Phase 2)
+// RunAds - Enhanced Meta Ad Generator (Phase 3)
 // Modes: copy, images, email-sequence, full
-// Integrates 73 psychological triggers + platform formulas
+// Integrates 73 psychological triggers + platform formulas + Meta Ads Knowledge Base
 
 export const config = { maxDuration: 300 };
 
@@ -8,6 +8,10 @@ import {
   TRIGGERS, STACKING_FORMULAS, PLATFORM_FORMULAS,
   getTriggersForPageType, getTriggersForAwareness, buildTriggerContext
 } from '../lib/psychological-triggers.js';
+
+import {
+  buildAdCopyContext, buildImagePromptContext, buildBrandInjectionString
+} from '../lib/meta-ads-context/index.js';
 
 const HOOK_FRAMEWORKS = {
   'problem-agitate-solution': 'Name pain → Amplify emotional cost → Present solution',
@@ -300,6 +304,17 @@ export default async function handler(req, res) {
         ? `\n## COGNITIVE BIASES TO WEAVE INTO COPY\n${cognitive_biases.map(b => `- **${b}**: ${COGNITIVE_BIASES[b] || b}`).join('\n')}\n\nYou MUST strategically apply these biases in your copy. The hook should leverage 1-2 biases. The body should weave in all remaining biases naturally. Each bias should serve the persuasion arc, not feel forced.\n`
         : '';
 
+      // Build structured knowledge base context for this ad
+      const knowledgeBaseContext = buildAdCopyContext({
+        industry: client_data?.industry || '',
+        awarenessLevel: awareness_level || 'problem_aware',
+        platform: platform || 'facebook',
+        tone: tone || 'conversational',
+        hookFramework: hook_framework || '',
+        trafficTemp: awareness_level === 'most_aware' ? 'hot' : (awareness_level === 'product_aware' ? 'warm' : 'cold')
+      });
+      const brandInjection = buildBrandInjectionString(client_data);
+
       const copyPrompt = `You are a world-class direct response copywriter with deep expertise in behavioral psychology, cognitive biases, and persuasion science. You've studied the work of Gary Halbert, Eugene Schwartz, Joe Sugarman, Gary Bencivenga, and David Ogilvy. You understand that great advertising is not about features — it's about triggering emotional and cognitive responses that make action feel inevitable.
 
 Generate ${num_variations || 3} ad copy variations that demonstrate mastery of:
@@ -310,6 +325,7 @@ Generate ${num_variations || 3} ad copy variations that demonstrate mastery of:
 
 ## Client/Brand
 ${client_data ? JSON.stringify(client_data, null, 2) : 'No brand data provided - use professional defaults'}
+${brandInjection}
 
 ## Audience & Awareness Psychology
 - Target Audience: ${target_audience || 'Not specified'}
@@ -337,6 +353,9 @@ IMPORTANT AWARENESS CONTEXT:
 
 ${triggerContext}
 ${biasContext}
+
+## META ADS KNOWLEDGE BASE (structured best practices & templates)
+${knowledgeBaseContext}
 
 ## ADVANCED COPY PRINCIPLES (apply throughout)
 
@@ -410,6 +429,23 @@ Respond in this JSON format:
         ? `## VISUAL STYLES TO USE\n${ad_styles.map(s => `- **${s}**: ${AD_STYLES[s] || s}`).join('\n')}\n\nEach prompt should be crafted in one of these specific visual styles. Distribute them across prompts for variety.`
         : '';
 
+      // Build structured image prompt context from knowledge base
+      const imageKnowledgeBase = buildImagePromptContext({
+        awarenessLevel: awareness_level || 'problem_aware',
+        platform: platform || 'facebook',
+        industry: client_data?.industry || '',
+        brandData: client_data?.style_guide ? {
+          colors: {
+            primary: client_data.style_guide.primary_color,
+            secondary: client_data.style_guide.secondary_color,
+            accent: client_data.style_guide.accent_color
+          },
+          typography: { heading_font: client_data.style_guide.heading_font },
+          voice: client_data.brand_voice
+        } : null,
+        aspectRatio: aspect_ratio || '4:5'
+      });
+
       const imagePrompt = `You are a world-class creative director and AI image prompt engineer who understands both visual psychology and Meta advertising performance science. You specialize in creating image prompts that:
 1. Stop the scroll in under 0.3 seconds
 2. Encode cognitive biases into visual elements
@@ -433,6 +469,9 @@ VISUAL STRATEGY BY AWARENESS:
 
 ${biasInfo}
 ${styleDescriptions}
+
+## META ADS IMAGE KNOWLEDGE BASE
+${imageKnowledgeBase}
 
 ## Technical Specifications
 - Aspect Ratio: ${aspect_ratio || '4:5'} — compose specifically for this frame
@@ -591,6 +630,15 @@ Return JSON:
     // ============================================================
     // RESPONSE
     // ============================================================
+    // Build knowledge base metadata for the response
+    const kbMeta = {};
+    try {
+      const { matchIndustry, getHooksForAwareness } = await import('../lib/meta-ads-context/index.js');
+      const industryMatch = matchIndustry(client_data?.industry || '');
+      if (industryMatch) kbMeta.industry_matched = industryMatch.name;
+      kbMeta.recommended_hooks = getHooksForAwareness(awareness_level || 'problem_aware');
+    } catch { /* knowledge base metadata is optional */ }
+
     res.json({
       ...results,
       triggers_used: selectedTriggers.map(t => ({ id: t.id, name: t.name, category: t.category })),
@@ -598,6 +646,7 @@ Return JSON:
         platform: platform || 'facebook',
         guidelines: platformGuide
       },
+      knowledge_base: kbMeta,
       tokens_used: totalTokens,
       estimated_cost: (totalTokens / 1000000 * 3).toFixed(4)
     });
