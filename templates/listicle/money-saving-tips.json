@@ -1,0 +1,76 @@
+{
+  "id": "listicle-money-saving-tips",
+  "name": "Money-Saving Tips Listicle",
+  "type": "listicle",
+  "description": "Native ad disguised as helpful financial tips article. Product naturally integrated as one of the tips.",
+  "industries": ["finance", "ecommerce", "saas", "insurance", "all"],
+  "conversion_goals": ["purchase", "signup", "lead", "download"],
+  "section_structure": [
+    {
+      "name": "header",
+      "type": "content_header",
+      "elements": ["site_logo", "category_tag", "share_buttons"]
+    },
+    {
+      "name": "hero",
+      "type": "listicle_hero",
+      "elements": ["number_headline", "subheadline", "reading_time", "featured_image"]
+    },
+    {
+      "name": "intro",
+      "type": "content",
+      "elements": ["hook_paragraph", "problem_statement", "promise"]
+    },
+    {
+      "name": "tip_1",
+      "type": "list_item",
+      "elements": ["number_badge", "tip_headline", "explanation", "action_item"]
+    },
+    {
+      "name": "tip_2",
+      "type": "list_item",
+      "elements": ["number_badge", "tip_headline", "explanation", "action_item"]
+    },
+    {
+      "name": "tip_3",
+      "type": "list_item",
+      "elements": ["number_badge", "tip_headline", "explanation", "action_item"]
+    },
+    {
+      "name": "tip_4_product",
+      "type": "list_item_featured",
+      "elements": ["number_badge", "tip_headline", "product_integration", "benefits", "soft_cta"]
+    },
+    {
+      "name": "tip_5",
+      "type": "list_item",
+      "elements": ["number_badge", "tip_headline", "explanation", "action_item"]
+    },
+    {
+      "name": "tip_6",
+      "type": "list_item",
+      "elements": ["number_badge", "tip_headline", "explanation", "action_item"]
+    },
+    {
+      "name": "bonus_tip",
+      "type": "list_item_featured",
+      "elements": ["bonus_badge", "tip_headline", "product_callback", "testimonial", "cta"]
+    },
+    {
+      "name": "conclusion",
+      "type": "content",
+      "elements": ["summary", "encouragement", "final_cta"]
+    },
+    {
+      "name": "author_box",
+      "type": "author",
+      "elements": ["author_photo", "author_bio", "credentials"]
+    }
+  ],
+  "design_notes": {
+    "layout": "card-based, alternating layouts",
+    "typography": "bold number badges, clear hierarchy",
+    "imagery": "lifestyle images for each tip",
+    "cta_style": "inline within featured tips, final prominent CTA"
+  }
+}

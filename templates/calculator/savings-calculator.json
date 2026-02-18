@@ -1,0 +1,95 @@
+{
+  "id": "calculator-savings",
+  "name": "Savings Calculator",
+  "type": "calculator",
+  "description": "Interactive calculator showing potential savings or ROI. Great for SaaS, financial services, and comparison tools.",
+  "industries": ["saas", "finance", "insurance", "energy", "ecommerce", "all"],
+  "conversion_goals": ["lead", "demo", "signup", "purchase"],
+  "section_structure": [
+    {
+      "name": "header",
+      "type": "simple_header",
+      "elements": ["logo", "value_prop_tagline"]
+    },
+    {
+      "name": "hero",
+      "type": "calculator_hero",
+      "elements": ["headline", "subheadline", "calculator_preview"]
+    },
+    {
+      "name": "calculator",
+      "type": "interactive_calculator",
+      "elements": [
+        "input_field_1",
+        "input_field_2",
+        "input_field_3",
+        "slider_input",
+        "calculate_button",
+        "results_display"
+      ]
+    },
+    {
+      "name": "results_breakdown",
+      "type": "calculator_results",
+      "elements": [
+        "current_cost",
+        "potential_savings",
+        "time_period_selector",
+        "comparison_visual",
+        "roi_calculation"
+      ]
+    },
+    {
+      "name": "personalized_cta",
+      "type": "cta",
+      "elements": [
+        "based_on_results_message",
+        "recommended_plan",
+        "cta_button",
+        "or_contact_us"
+      ]
+    },
+    {
+      "name": "how_it_works",
+      "type": "features",
+      "elements": ["step_1", "step_2", "step_3", "step_4"]
+    },
+    {
+      "name": "social_proof",
+      "type": "testimonials",
+      "elements": ["customer_savings_stories", "average_savings_stat", "company_logos"]
+    },
+    {
+      "name": "comparison",
+      "type": "comparison",
+      "elements": ["before_after", "competitor_comparison", "feature_matrix"]
+    },
+    {
+      "name": "trust_signals",
+      "type": "social_proof",
+      "elements": ["security_badges", "certifications", "reviews_score"]
+    },
+    {
+      "name": "faq",
+      "type": "faq",
+      "elements": ["calculation_methodology", "getting_started", "pricing_questions"]
+    },
+    {
+      "name": "final_cta",
+      "type": "cta",
+      "elements": ["recap_savings", "start_saving_button", "demo_option", "guarantee"]
+    },
+    {
+      "name": "footer",
+      "type": "footer",
+      "elements": ["links", "contact", "legal"]
+    }
+  ],
+  "design_notes": {
+    "layout": "calculator prominent above fold, results visually impactful",
+    "typography": "clear labels, large result numbers",
+    "imagery": "minimal, focus on data visualization",
+    "cta_style": "dynamic CTA based on calculated results",
+    "interactions": "real-time calculation, animated result reveals"
+  }
+}

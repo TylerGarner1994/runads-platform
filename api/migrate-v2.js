@@ -163,6 +163,25 @@ export default async function handler(req, res) {
     )
   `);
 
+  // ============================================================
+  // 7. PAGE_TEMPLATES TABLE - Add missing columns for seed/recommend
+  // ============================================================
+  await runMigration('Add page_templates.type', sql`
+    ALTER TABLE page_templates ADD COLUMN IF NOT EXISTS type TEXT
+  `);
+  await runMigration('Add page_templates.industries', sql`
+    ALTER TABLE page_templates ADD COLUMN IF NOT EXISTS industries JSONB DEFAULT '[]'
+  `);
+  await runMigration('Add page_templates.conversion_goals', sql`
+    ALTER TABLE page_templates ADD COLUMN IF NOT EXISTS conversion_goals JSONB DEFAULT '[]'
+  `);
+  await runMigration('Add page_templates.is_active', sql`
+    ALTER TABLE page_templates ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
+  `);
+  await runMigration('Add page_templates.avg_conversion_rate', sql`
+    ALTER TABLE page_templates ADD COLUMN IF NOT EXISTS avg_conversion_rate NUMERIC
+  `);
+
   return res.status(200).json({
     success: errors.length === 0,
     message: `Migration complete. ${results.length} operations run, ${errors.length} errors.`,

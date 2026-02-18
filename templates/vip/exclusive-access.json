@@ -1,0 +1,77 @@
+{
+  "id": "vip-exclusive-access",
+  "name": "VIP Exclusive Access",
+  "type": "vip",
+  "description": "Premium, exclusive offer page with luxury feel. Perfect for high-ticket items, limited releases, and VIP programs.",
+  "industries": ["luxury", "fashion", "beauty", "coaching", "membership", "all"],
+  "conversion_goals": ["purchase", "signup", "lead"],
+  "section_structure": [
+    {
+      "name": "header",
+      "type": "minimal_header",
+      "elements": ["logo", "vip_badge"]
+    },
+    {
+      "name": "hero",
+      "type": "vip_hero",
+      "elements": ["exclusive_headline", "invitation_subheadline", "limited_spots_indicator", "hero_image"]
+    },
+    {
+      "name": "selection_message",
+      "type": "content",
+      "elements": ["youve_been_selected", "why_you_qualify", "what_this_means"]
+    },
+    {
+      "name": "offer_details",
+      "type": "vip_offer",
+      "elements": ["offer_headline", "offer_description", "value_proposition", "exclusive_benefits"]
+    },
+    {
+      "name": "benefits_grid",
+      "type": "features",
+      "elements": ["benefit_1", "benefit_2", "benefit_3", "benefit_4"]
+    },
+    {
+      "name": "social_proof",
+      "type": "testimonials",
+      "elements": ["vip_testimonials", "notable_members", "results_achieved"]
+    },
+    {
+      "name": "comparison",
+      "type": "comparison",
+      "elements": ["regular_vs_vip", "value_breakdown", "savings_highlight"]
+    },
+    {
+      "name": "urgency",
+      "type": "urgency",
+      "elements": ["countdown_timer", "spots_remaining", "deadline_message"]
+    },
+    {
+      "name": "cta_section",
+      "type": "cta",
+      "elements": ["claim_spot_button", "price_display", "guarantee", "payment_options"]
+    },
+    {
+      "name": "faq",
+      "type": "faq",
+      "elements": ["vip_questions", "what_happens_next", "cancellation_policy"]
+    },
+    {
+      "name": "final_cta",
+      "type": "cta",
+      "elements": ["last_chance_message", "cta_button", "contact_option"]
+    },
+    {
+      "name": "footer",
+      "type": "minimal_footer",
+      "elements": ["privacy_policy", "terms", "contact"]
+    }
+  ],
+  "design_notes": {
+    "layout": "centered, focused, minimal distractions",
+    "typography": "elegant serif for headlines, premium feel",
+    "imagery": "high-end lifestyle, gold/premium accents",
+    "cta_style": "single focused CTA, premium button styling",
+    "color_scheme": "dark backgrounds with gold/premium accents option"
+  }
+}

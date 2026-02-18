@@ -1,0 +1,92 @@
+{
+  "id": "quiz-personalization",
+  "name": "Personalization Quiz",
+  "type": "quiz",
+  "description": "Interactive quiz that leads to personalized product recommendation. Great for beauty, health, fashion, and subscription products.",
+  "industries": ["beauty", "health", "fashion", "subscription", "ecommerce"],
+  "conversion_goals": ["lead", "purchase", "signup"],
+  "section_structure": [
+    {
+      "name": "landing",
+      "type": "quiz_landing",
+      "elements": ["headline", "subheadline", "quiz_preview", "start_button", "time_estimate"]
+    },
+    {
+      "name": "question_1",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_2",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_3",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_4",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_5",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_6",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_7",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "question_8",
+      "type": "quiz_question",
+      "elements": ["progress_bar", "question_text", "answer_options", "answer_images"]
+    },
+    {
+      "name": "email_capture",
+      "type": "quiz_capture",
+      "elements": ["almost_done_message", "email_input", "privacy_note", "see_results_button"]
+    },
+    {
+      "name": "loading_results",
+      "type": "quiz_loading",
+      "elements": ["analyzing_message", "loading_animation", "fun_facts"]
+    },
+    {
+      "name": "results",
+      "type": "quiz_results",
+      "elements": ["personalized_headline", "result_type", "result_description", "product_recommendation"]
+    },
+    {
+      "name": "product_details",
+      "type": "product_feature",
+      "elements": ["why_this_product", "key_benefits", "ingredients_or_features", "testimonial"]
+    },
+    {
+      "name": "offer",
+      "type": "cta",
+      "elements": ["special_offer", "discount_code", "cta_button", "guarantee"]
+    },
+    {
+      "name": "share",
+      "type": "social_share",
+      "elements": ["share_prompt", "share_buttons", "friend_referral"]
+    }
+  ],
+  "design_notes": {
+    "layout": "full-screen questions, one at a time",
+    "typography": "large, readable questions, clear answer options",
+    "imagery": "visual answer options where applicable",
+    "cta_style": "progress-based urgency, personalized result drives conversion",
+    "interactions": "smooth transitions, immediate feedback on selection"
+  }
+}

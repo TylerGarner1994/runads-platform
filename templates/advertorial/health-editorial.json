@@ -1,0 +1,81 @@
+{
+  "id": "advertorial-health-editorial",
+  "name": "Health Editorial Advertorial",
+  "type": "advertorial",
+  "description": "Professional health/wellness advertorial that reads like a news article. Perfect for supplements, health products, and medical devices.",
+  "industries": ["health", "wellness", "supplements", "beauty", "fitness"],
+  "conversion_goals": ["purchase", "signup", "lead"],
+  "section_structure": [
+    {
+      "name": "header",
+      "type": "editorial_header",
+      "elements": ["publication_logo", "native_ad_disclosure", "share_buttons", "date"]
+    },
+    {
+      "name": "hero",
+      "type": "article_hero",
+      "elements": ["headline", "subheadline", "author_byline", "featured_image"]
+    },
+    {
+      "name": "hook",
+      "type": "story_intro",
+      "elements": ["personal_story", "problem_identification", "curiosity_hook"]
+    },
+    {
+      "name": "problem_agitation",
+      "type": "content",
+      "elements": ["pain_points", "failed_solutions", "emotional_connection"]
+    },
+    {
+      "name": "discovery",
+      "type": "content",
+      "elements": ["breakthrough_moment", "expert_discovery", "credibility_builder"]
+    },
+    {
+      "name": "solution_reveal",
+      "type": "product_feature",
+      "elements": ["product_introduction", "how_it_works", "key_benefits"]
+    },
+    {
+      "name": "social_proof_1",
+      "type": "testimonials",
+      "elements": ["customer_stories", "before_after", "verified_results"]
+    },
+    {
+      "name": "science_section",
+      "type": "content",
+      "elements": ["research_backing", "ingredient_breakdown", "expert_quotes"]
+    },
+    {
+      "name": "benefits_deep_dive",
+      "type": "features",
+      "elements": ["benefit_cards", "comparison_chart", "unique_differentiators"]
+    },
+    {
+      "name": "social_proof_2",
+      "type": "testimonials",
+      "elements": ["more_testimonials", "media_mentions", "trust_badges"]
+    },
+    {
+      "name": "objection_handling",
+      "type": "faq",
+      "elements": ["common_questions", "guarantee_info", "safety_concerns"]
+    },
+    {
+      "name": "cta_section",
+      "type": "cta",
+      "elements": ["offer_details", "urgency_element", "primary_cta", "risk_reversal"]
+    },
+    {
+      "name": "footer",
+      "type": "editorial_footer",
+      "elements": ["disclaimer", "references", "related_articles"]
+    }
+  ],
+  "design_notes": {
+    "layout": "narrow content column (max 720px)",
+    "typography": "serif headings, sans-serif body",
+    "imagery": "editorial style photos, before/after where applicable",
+    "cta_style": "subtle inline CTAs building to prominent final CTA"
+  }
+}
