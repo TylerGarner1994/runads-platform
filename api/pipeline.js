@@ -433,7 +433,8 @@ Return a JSON object:
   return { data: brandData, tokensUsed };
 }
 
-// STEP 3: STRATEGY - Page outline and messaging (PERSONA-ARCHITECT + Strategic Framework)
+// STEP 3: STRATEGY - Create page plan before any writing happens
+// Decides which claims go where, plans the persuasion flow, maps the entire page
 async function runStrategy(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
@@ -441,162 +442,81 @@ async function runStrategy(job) {
   const audience = job.input_data.audience || job.input_data.targetAudience || '';
   const tone = job.input_data.tone || 'Professional & Trustworthy';
 
-  // Get relevant psychological triggers
-  const triggerContext = buildTriggerContext(pageType, 'solution_aware', 8);
-  const stackContext = getStrategyContext(pageType);
+  // Get verified claims and testimonials
+  const testimonials = research.product_research?.proof_inventory?.testimonials || research._scrapedTestimonials || [];
+  const dataPoints = research.product_research?.proof_inventory?.data_points || [];
 
-  // Load persona-architect and research question skill frameworks
-  const strategySkillContext = getStrategySkillContext();
+  const userPrompt = `Create a strategic page plan for a ${pageType} landing page.
 
-  const systemPrompt = `You are an elite conversion strategist combining:
-- **Eugene Schwartz** (awareness levels, sophistication calibration)
-- **Gary Halbert** (hooks, hooks, hooks — leading with strongest hooks)
-- **Robert Cialdini** (6 principles of influence)
-- **Oren Klaff** (pitch framing, pattern interrupts)
-- **Gary Bencivenga** (80/20 thinking, proof hierarchy)
-- **Evaldo** (16-Word Framework: Big Promise + Unique Mechanism + Overwhelming Proof)
-
-Your job is to architect 3-5 detailed buyer personas and the strategy to move them from their current awareness level to purchase decision.
-
-For each persona, define:
-1. Demographics + psychographics
-2. Schwartz Awareness Level (1-5)
-3. Layered Pain Points (surface, emotional, existential)
-4. Layered Desires (surface, aspiration, identity)
-5. Top 5 Cognitive Biases (with stack recommendations)
-6. Objections/resistance points
-7. Decision-making style (rational, emotional, social proof-driven, etc.)
-8. Language patterns (actual words they use)
-
-Then architect the page strategy to move them through the awareness journey using:
-- Specific trigger sequences
-- Proof hierarchy (strongest to weakest)
-- Unique mechanism revelation
-- Copy architecture (advertorial vs sales letter)
-
-Return valid JSON only.`;
-
-  const userPrompt = `Create a comprehensive persona and page strategy for a ${pageType} page.
-
-BUSINESS INFO:
+## BUSINESS
 Company: ${research.company_name || 'Unknown'}
 Industry: ${research.industry || 'Unknown'}
-Value Props: ${JSON.stringify(research.value_propositions || [])}
-Unique Mechanism: ${research.product_research?.unique_mechanism || research.unique_differentiators?.[0] || 'N/A'}
+Value Propositions: ${JSON.stringify(research.value_propositions || [])}
+Unique Mechanism: ${research.product_research?.unique_mechanism || research.unique_differentiators?.[0] || 'Not specified'}
 Target Audience: ${audience || JSON.stringify(research.target_audiences?.[0] || {})}
+
+## VERIFIED DATA (only use these, do not invent)
+Testimonials: ${JSON.stringify(testimonials.slice(0, 10))}
+Data Points: ${JSON.stringify(dataPoints.slice(0, 10))}
+Key Claims: ${JSON.stringify(research.key_claims || [])}
+Objections: ${JSON.stringify(research.product_research?.key_objections || [])}
+
+## BRAND VOICE
 Tone: ${tone}
-Brand Voice: ${JSON.stringify(brand.brand_voice || research.brand_voice || {})}
+${brand.brand_voice?.keywords?.length ? 'Keywords: ' + brand.brand_voice.keywords.join(', ') : ''}
 
-CUSTOMER RESEARCH:
-Awareness Level: ${research.customer_research?.awareness_level || research.awareness_level || '3 (Solution-Aware)'}
-Market Sophistication: ${research.customer_research?.market_sophistication || research.market_sophistication || '3'}
-Dominant Emotion: ${research.customer_research?.dominant_emotion || research.emotional_hooks?.[0] || 'Unknown'}
-Voice of Customer: ${JSON.stringify(research.customer_research?.voice_of_customer || [])}
-Pain Points: ${JSON.stringify(research.customer_research?.pain_points_layered || research.target_audiences?.[0]?.pain_points || [])}
-Desires: ${JSON.stringify(research.customer_research?.desires_layered || research.target_audiences?.[0]?.desires || [])}
-Key Objections: ${JSON.stringify(research.product_research?.key_objections || [])}
+## TASK
+Plan the page strategy. Decide:
+1. Who is the target persona (one primary persona)?
+2. What is the hook/headline angle?
+3. What sections should the page have and in what order?
+4. Which verified claims and testimonials go in which sections?
+5. What is the CTA strategy?
+6. How do we handle objections?
 
-${triggerContext}
-
-${stackContext}
-
-${strategySkillContext ? '## SKILL REFERENCE FRAMEWORKS (follow these methodologies for persona development):\n' + strategySkillContext + '\n\n---\n' : ''}
-
-DELIVERABLE: Return JSON with persona architecture and page strategy:
+Return JSON:
 {
-  "personas": [
+  "page_goal": "string",
+  "target_persona": {
+    "description": "string",
+    "pain_points": ["string"],
+    "desires": ["string"],
+    "objections": ["string"]
+  },
+  "hook": {
+    "headline": "string (the headline angle, not final copy)",
+    "subheadline": "string",
+    "angle": "string (curiosity-gap|story-hook|statistic-lead|problem-agitation)"
+  },
+  "sections": [
     {
-      "persona_name": "string (e.g., 'Exhausted Executive')",
-      "demographics": {"age_range": "string", "income": "string", "location": "string", "education": "string"},
-      "psychographics": {"values": ["string"], "lifestyle": "string", "aspirations": "string"},
-      "awareness_level": "1-5 (Schwartz: 1=Unaware to 5=Most-Aware)",
-      "pain_points_layered": [
-        {"level": "surface", "point": "string (tangible, immediate)"},
-        {"level": "emotional", "point": "string (frustration, shame, anxiety)"},
-        {"level": "existential", "point": "string (identity, life meaning)"}
-      ],
-      "desires_layered": [
-        {"level": "surface", "desire": "string (tangible outcome)"},
-        {"level": "aspiration", "desire": "string (lifestyle, status)"},
-        {"level": "identity", "desire": "string (who they want to be)"}
-      ],
-      "cognitive_biases": [
-        {"bias": "string (e.g., Loss Aversion, Anchoring, etc.)", "application": "string (how we stack it)"},
-        {"bias": "string", "application": "string"},
-        {"bias": "string", "application": "string"},
-        {"bias": "string", "application": "string"},
-        {"bias": "string", "application": "string"}
-      ],
-      "objections": ["string (what prevents purchase?)", ...],
-      "decision_style": "string (rational | emotional | social-proof-driven | authority-driven)",
-      "language_patterns": ["string (exact VOC phrases)", ...]
+      "name": "string (e.g., 'opening_story', 'problem', 'mechanism', 'solution', 'proof', 'testimonials', 'faq', 'cta')",
+      "purpose": "string",
+      "key_message": "string",
+      "elements": ["string (what elements: text, stats, testimonial, image, CTA, etc.)"],
+      "claims_to_use": ["string (which verified claims to include here)"]
     }
   ],
-
-  "strategic_framework": {
-    "awareness_calibration": {
-      "starting_level": "1-5",
-      "target_level": "5 (Most-Aware)",
-      "journey": "string (how do we move them from awareness_level → Most-Aware?)"
-    },
-    "market_sophistication": "1-5",
-    "big_idea": "string (the core promise that moves this market)",
-    "unique_mechanism": "string (Evaldo's 16-Word: Big Promise + Unique Mechanism + Overwhelming Proof)",
-    "mechanism_type": "string (New Discovery | Hidden Cause | Overlooked Factor | Proprietary Process | Counter-Intuitive)",
-    "copy_architecture": "string (advertorial | sales_letter | magalog — which structure best moves this persona?)",
-    "proof_hierarchy": [
-      "Third-party credentialed proof (strongest)",
-      "Expert opinion/authority",
-      "Demonstration proof (before/after)",
-      "Specific customer testimonials with results",
-      "General testimonials/social proof",
-      "Logical/theoretical proof",
-      "Claims/promises (weakest)"
-    ]
+  "cta_strategy": {
+    "primary_cta": "string",
+    "secondary_cta": "string or null",
+    "cta_placement": ["string (where CTAs appear)"],
+    "urgency_element": "string or null"
   },
-
-  "page_strategy": {
-    "page_title": "string",
-    "meta_description": "string",
-    "hero_strategy": {
-      "headline_angle": "string (must lead with Big Promise or biggest curiosity gap)",
-      "subheadline_angle": "string (support with unique mechanism or strongest proof)",
-      "opening_hook": "string (what pattern-interrupts, creates curiosity, or agitates the pain?)",
-      "hero_hook_type": "string (curiosity-gap | statistic-lead | story-hook | problem-agitation | secret-reveal)",
-      "primary_cta": "string (benefit-driven, specific action)"
-    },
-    "sections": [
-      {
-        "section_name": "string (e.g., 'Problem Agitation', 'Unique Mechanism Reveal', 'Proof Stack')",
-        "purpose": "string (what does this section accomplish in the journey?)",
-        "psychological_triggers": ["trigger name", ...],
-        "content_brief": "string (what copy should accomplish here?)",
-        "cta": "string or null (soft CTA if applicable)"
-      }
-    ],
-    "psychology_plan": {
-      "primary_triggers": ["trigger names and why we use them"],
-      "trigger_stack_sequence": "string (the emotional/psychological journey: opening pattern interrupt → problem agitation → unique mechanism reveal → social proof → objection handling → risk reversal → call to action)",
-      "awareness_journey": "string (e.g., 'Start at Problem-Aware (level 2) → Move to Solution-Aware (level 3) → Position our mechanism as the ONLY solution (level 4) → Overcome final objections → Purchase (level 5)')",
-      "objection_response_pairs": [
-        {"objection": "string", "response_strategy": "string (how we handle it in copy)"}
-      ]
-    },
-    "proof_strategy": {
-      "testimonial_placement": ["where to place testimonials by section"],
-      "data_points": ["specific numbers/stats to include", ...],
-      "authority_signals": ["credentials/expert endorsements", ...],
-      "proof_stack_order": "string (apply proof hierarchy strongest → weakest)"
-    }
-  }
+  "objection_handling": [
+    {"objection": "string", "response": "string"}
+  ],
+  "social_proof_strategy": "string (how to stack proof throughout the page)",
+  "tone_guidelines": "string"
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 8192);
+  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-5-20250929', 3000);
   const strategyData = parseJSON(text);
   return { data: strategyData, tokensUsed };
 }
 
-// STEP 4: COPY - Generate all copy (LEGENDARY-SALES-LETTER Framework + 33 Laws)
+// STEP 4: COPY - Generate page copy
+// Simplified, focused prompt that produces natural, human-sounding copy
 async function runCopy(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
@@ -604,244 +524,110 @@ async function runCopy(job) {
   const pageType = job.page_type;
   const tone = job.input_data.tone || 'Professional & Trustworthy';
 
-  const triggerContext = buildTriggerContext(pageType, 'solution_aware', 6);
+  // Get verified claims and testimonials from research
+  const testimonials = research.product_research?.proof_inventory?.testimonials || research._scrapedTestimonials || [];
+  const dataPoints = research.product_research?.proof_inventory?.data_points || [];
+  const objections = research.product_research?.key_objections || [];
 
-  // Load the full legendary-sales-letter skill framework + references
-  const copySkillContext = getCopySkillContext(pageType);
+  // Page-type-specific guidelines (focused, not encyclopedic)
+  const pageTypeGuidelines = {
+    advertorial: `Write as a journalistic article, NOT an ad. 1500-2500 words.
+Use a conversational, editorial tone like a health/lifestyle magazine feature.
+Open with a named character's story (first name, age, specific details).
+Structure: hook story > problem > "what experts are saying" > discovery > mechanism > proof > soft product intro > testimonials > FAQ > editorial CTA.
+The product should not appear until the second half of the article.
+Use pull quotes, blockquotes, and data callouts to break up text.`,
+    'sales-letter': `Write a direct response sales letter. 2000-3000 words.
+Lead with the biggest promise or most compelling proof point.
+Structure: headline > subheadline > lead story > problem > mechanism > solution > proof stack > offer > guarantee > CTA > P.S.
+Stack proof from strongest to weakest: third-party data > expert quotes > testimonials > logical arguments.`,
+    listicle: `Write as a numbered list article. 100-200 words per item.
+Use curiosity-driven headlines for each item. 7-15 items.
+Mix format: some items text-heavy, some with stats, some with mini-stories.`,
+    quiz: `Write quiz content with 5-8 insight-focused questions.
+Each question should make the reader reflect on their situation.
+Results should feel personalized and lead naturally to the product as a solution.`,
+    'vip-signup': `Write exclusive, premium-feeling copy. 500-800 words.
+Emphasize scarcity, exclusivity, and insider access.
+Use sophisticated language without being pretentious.`
+  };
 
-  const systemPrompt = `You are a legendary master copywriter synthesizing the entire history of direct response brilliance:
+  const userPrompt = `Write copy for a ${pageType} landing page for ${research.company_name || 'this business'}.
 
-**Foundation:** You cannot create desire — only channel it. Market > Offer > Copy.
-
-**Masters You Channel:**
-- **Eugene Schwartz**: Awareness levels, sophistication stages, "Breakthrough Advertising"
-- **Gary Halbert**: Hooks that steal attention, A-pile urgency, conversational tone
-- **David Ogilvy**: Research-driven elegance, headlines that lead with benefit
-- **Joe Sugarman**: "Slippery slide" — every sentence compels the next, fascination bullets
-- **Gary Bencivenga**: 80/20 proof hierarchy, eliminating objections
-- **John Makepeace**: Dimensionalizing — creating vivid before/after pain states
-- **Dan Kennedy**: Direct response mechanics, hard closes, specificity
-- **Evaldo**: 16-Word Framework (Big Promise + Unique Mechanism + Overwhelming Proof)
-- **Gay Talese**: New Journalism (named characters, sensory details, narrative scenes)
-- **Robert Cialdini**: 6 Principles of Influence woven into structure
-- **Joe Sugarman's 28 Fascination Triggers**: Specific, Hidden, Counterintuitive, Warning, Question, How-To, Mistake, Best/Worst, Simple, Story Tease, Forbidden, Instant, Without, Authority, Discovery, Comparison, Page Reference, Even If, Never, Truth About, Weird Trick, Proof, Fear-Based, Insider, Magic Word
-
-**Your Approach:**
-1. **5-Phase Process**: Deep Research > Strategic Foundation > Copy Architecture > Psychological Amplification > Final Polish
-2. **Awareness Calibration**: Match your opening to where the market is, then move them to Most-Aware
-3. **Proof Hierarchy**: Stack proof from strongest (third-party credentialed) to weakest (claims)
-4. **Unique Mechanism**: Position the "why this works" as the core story, not a feature list
-5. **Narrative Arc**: Every section has tension, insight, then resolution
-6. **Emotional + Logical**: Lead with emotion, support with data
-7. **Conversational Specificity**: Write like Halbert (conversational) with Ogilvy's research precision
-
-CRITICAL FORMATTING RULE — NEVER USE EM DASHES:
-- NEVER use the em dash character (—) anywhere in your copy. It is a dead giveaway of AI-generated content.
-- Instead of em dashes, use commas, periods, semicolons, colons, or rewrite the sentence.
-- BAD: "This supplement — unlike anything else — actually works"
-- GOOD: "This supplement, unlike anything else, actually works"
-- BAD: "The results were clear — 93% improvement"
-- GOOD: "The results were clear: 93% improvement"
-- This rule applies to ALL text output including headlines, body copy, testimonials, CTAs, and meta descriptions.
-
-Return valid JSON only.`;
-
-  const userPrompt = `Write legendary-quality copy for a ${pageType} landing page. Apply the 33 Laws, fascination triggers, and master copywriter principles.
-
-STRATEGY & PERSONAS:
-${JSON.stringify(strategy, null, 2)}
-
-RESEARCH DATA:
+## BUSINESS CONTEXT
 Company: ${research.company_name || 'Unknown'}
 Industry: ${research.industry || 'Unknown'}
-Value Props: ${JSON.stringify(research.value_propositions || [])}
-Unique Mechanism: ${research.product_research?.unique_mechanism || research.unique_differentiators?.[0] || 'N/A'}
-Mechanism Type: ${research.product_research?.mechanism_type || 'Proprietary Process'}
-Key Claims: ${JSON.stringify(research.key_claims || [])}
-Testimonials: ${JSON.stringify(research.product_research?.proof_inventory?.testimonials || research.testimonials || [])}
-Products: ${JSON.stringify(research.products_services || [])}
-Voice of Customer: ${JSON.stringify(research.customer_research?.voice_of_customer || [])}
-Objections: ${JSON.stringify(research.product_research?.key_objections || [])}
+Value Propositions: ${JSON.stringify(research.value_propositions || [])}
+Unique Mechanism: ${research.product_research?.unique_mechanism || research.unique_differentiators?.[0] || 'Not specified'}
+Products: ${JSON.stringify((research.products_services || []).slice(0, 3))}
 
-BRAND VOICE:
+## STRATEGY (follow this plan)
+${JSON.stringify({
+  page_goal: strategy.page_strategy?.hero_strategy?.headline_angle || strategy.strategic_framework?.big_idea || 'Convert visitors',
+  target_persona: strategy.personas?.[0] || {},
+  sections: strategy.page_strategy?.sections || [],
+  cta_strategy: strategy.page_strategy?.hero_strategy || {}
+}, null, 2)}
+
+## VERIFIED CLAIMS (use ONLY these, do not invent statistics)
+Testimonials: ${JSON.stringify(testimonials.slice(0, 5))}
+Data Points: ${JSON.stringify(dataPoints.slice(0, 5))}
+If you need a stat but none is verified, write [NEEDS VERIFICATION: description] instead.
+
+## BRAND VOICE
 Tone: ${tone}
-Keywords: ${JSON.stringify(brand.brand_voice?.keywords || [])}
-Guidelines: ${JSON.stringify(brand.brand_voice?.do || [])}
+${brand.brand_voice?.keywords?.length ? 'Keywords: ' + brand.brand_voice.keywords.join(', ') : ''}
+${brand.brand_voice?.do?.length ? 'Do: ' + brand.brand_voice.do.join('; ') : ''}
+${brand.brand_voice?.dont?.length ? 'Avoid: ' + brand.brand_voice.dont.join('; ') : ''}
 
-${triggerContext}
+## PAGE TYPE GUIDELINES
+${pageTypeGuidelines[pageType] || pageTypeGuidelines.advertorial}
 
-## 25 FASCINATION & BULLET FORMULAS TO USE:
-1. **Specific Number**: "The 7-minute morning ritual that..."
-2. **Hidden/Secret**: "The overlooked mechanism that..."
-3. **Counterintuitive**: "Why the opposite of what you've been told..."
-4. **Warning**: "The hidden dangers of..."
-5. **Question**: "Did you know that...?"
-6. **How-To**: "The exact 5-step process to..."
-7. **Mistake**: "The #1 mistake people make when..."
-8. **Best/Worst**: "The best way to... (or worst to avoid)"
-9. **Simple**: "It's simpler than you think..."
-10. **Story Tease**: "How [name] went from [state A] to [state B]"
-11. **Forbidden/Taboo**: "What they don't want you to know about..."
-12. **Instant/Fast**: "In just [timeframe], you'll..."
-13. **Without**: "How to get [result] without [effort/cost]"
-14. **Authority Quote**: "According to [expert], the real reason..."
-15. **Discovery**: "What we discovered after [research]..."
-16. **Comparison**: "The difference between [thing A] and [thing B]..."
-17. **Page Reference**: "[Benefit] — page 3"
-18. **Even If**: "Even if you've tried everything..."
-19. **Never**: "Why you should never..."
-20. **Truth About**: "The truth about [common belief]..."
-21. **Weird Trick**: "The weird [mechanism] that..."
-22. **Proof**: "Proven by [study/credential]..."
-23. **Fear-Based Tease**: "Before it's too late, you should know..."
-24. **Insider**: "What insiders know about..."
-25. **Magic Word/Phrase**: "The one thing that changes everything..."
+## WRITING RULES
+- Write like a skilled human copywriter, not an AI. Be conversational and specific.
+- NEVER use em dashes. Use commas, colons, periods, or semicolons instead.
+- Use specific numbers, real names, and concrete details from the research.
+- Short paragraphs (2-3 sentences). Vary sentence length.
+- Every section must advance the reader toward the CTA.
 
-## 33 LAWS OF LEGENDARY COPY (Apply These):
-**Research Laws:** Know your market cold. VOC is gold. Proof inventory. Objections mapped.
-**Strategic Laws:** Market > Offer > Copy. Big Promise + Unique Mechanism. Proof Hierarchy.
-**Structural Laws:** Hook first. Lead hard. Build tension. Reveal mechanism. Stack proof. Handle objections. Soft CTA.
-**Writing Laws:** Conversational tone. Specificity (numbers, names, dates). Active voice. Short sentences. Named characters. Sensory details.
-**Psychological Laws:** Lead with dominant emotion. Stack triggers. Create curiosity gaps. Use loss aversion. Build status desire.
-**Closing Laws:** Risk-reversal guarantee. Urgency (without manipulation). Clear primary CTA. Multiple CTAs for different readiness levels.
-**Polish Laws:** Every word earns its place. No clichés. Read aloud. Replace vague with specific.
-
-${copySkillContext ? '## FULL SKILL REFERENCE FRAMEWORKS (use these detailed methodologies):\n' + copySkillContext + '\n\n---\n' : ''}
-
-## STRUCTURE BY PAGE TYPE:
-
-IF ${pageType} === "advertorial" THEN USE 10-SECTION ARCHITECTURE:
-1. Editorial Headline (leads with intrigue, not pitch)
-2. Byline & Credibility (establishes authority)
-3. Editorial Opening (scene-setting, no hard sell)
-4. Problem Establishment & Agitation (dimensionalize the pain state)
-5. Discovery/Pivot (the moment of realization)
-6. Unique Mechanism Reveal (HERE'S WHY this works)
-7. Solution Introduction (introducing the product/service as natural result)
-8. Proof & Testimonials (third-party credibility, case studies)
-9. Objection Handling (FAQ-style, soft)
-10. Soft CTA (editorial, benefit-driven, low pressure)
-
-IF ${pageType} === "sales_letter" THEN USE 12-SECTION ARCHITECTURE:
-1. Headline (power headline with emotional specificity or unique mechanism)
-2. Subheadline/Deck (supports with proof or curiosity)
-3. Lead (opens with scene, story, or biggest curiosity gap)
-4. Credibility (why you should listen to us)
-5. Problem Expansion (agitate and dimensionalize the pain)
-6. Unique Mechanism Reveal (THE core insight that changes everything)
-7. Solution Build-Up (how the solution works step-by-step)
-8. Product Reveal (what it is, specifically)
-9. Benefits & Fascinations (transformation bullets using 25 formulas)
-10. Proof Stack (strongest to weakest: third-party, expert, demo, testimonials, logic, claims)
-11. Offer & Guarantee (price, guarantee, risk reversal)
-12. P.S. Section (reinforce biggest benefit or curiosity hook)
-
-Return JSON with all copy sections:
+## OUTPUT FORMAT
+Return JSON:
 {
-  "page_type_confirmed": "advertorial or sales_letter",
-
-  "headlines": {
-    "hero_headline": "string — power headline matching awareness level, leading with benefit or intrigue",
-    "hero_subheadline": "string — supports with unique mechanism or strongest proof point",
-    "section_headlines": [
-      "string — Problem: [agitating discovery]",
-      "string — Mechanism: [The one thing that...]",
-      "string — Solution: [How to get...]",
-      "string — Proof: [Proven by...]"
-    ]
-  },
-
+  "meta": {"title": "string (60 chars max)", "description": "string (155 chars max)"},
   "hero": {
-    "headline": "string (same as hero_headline for clarity)",
-    "subheadline": "string (same as hero_subheadline)",
-    "opening_narrative": "string (2-4 sentences — scene, story hook, or curiosity gap. Named character if possible.)",
-    "primary_cta_text": "string — benefit-driven, specific, action-oriented",
-    "secondary_cta_text": "string or null — softer alternative",
-    "social_proof_banner": "string — quick credibility banner (e.g., 'Trusted by 50,000+ Australians', '4.9★ from 2,847 reviews')"
+    "headline": "string",
+    "subheadline": "string",
+    "cta_text": "string",
+    "cta_subtext": "string or null"
   },
-
-  "body_sections": [
+  "sections": [
     {
-      "section_name": "string (e.g., 'Problem Agitation', 'Discovery Moment', 'Mechanism Reveal', 'Proof Stack', 'Objection Handling')",
-      "section_number": "number (1, 2, 3, etc. — for advertorial/sales letter sequencing)",
-      "purpose": "string (what this section accomplishes in the buyer journey)",
-      "headline": "string — curiosity-driven, benefit-focused, or mechanism-revealing",
-      "body_copy": "string (3-5 paragraphs of editorial-quality narrative. Include: specific data, named characters where appropriate, sensory details, story arcs, dimensionalized pain/desire states. NO bullet points — full prose.)",
-      "pull_quote": "string or null — the single most powerful stat, insight, or testimony from this section",
-      "fascination_bullets": [
-        "string — use one of the 25 fascination formulas",
-        "string — use another formula"
-      ],
-      "cta_text": "string or null — soft CTA if applicable"
+      "id": "string (e.g., 'opening', 'problem', 'mechanism', 'solution', 'proof', 'faq', 'cta')",
+      "type": "content|testimonial|features|faq|cta|social_proof",
+      "headline": "string",
+      "subheadline": "string or null",
+      "content": "string (the actual copy for this section, multiple paragraphs)",
+      "items": [{"headline": "string", "description": "string"}],
+      "cta": {"text": "string", "subtext": "string or null"},
+      "testimonials": [{"quote": "string", "author": "string", "role": "string"}]
     }
   ],
-
+  "footer_cta": {"headline": "string", "subheadline": "string", "cta_text": "string"},
   "social_proof": {
-    "stats": [
-      {"number": "string (specific, with unit)", "label": "string (context)", "source": "string (where this comes from)"},
-      {"number": "87%", "label": "of customers report improved [outcome] within [timeframe]", "source": "internal study"}
-    ],
-    "testimonials": [
-      {
-        "quote": "string (specific, detailed quote — ideally 2-3 sentences with transformation)",
-        "author": "string (First name + Initial, location)",
-        "credentials": "string (what makes them credible? e.g., 'Busy parent', 'Healthcare professional')",
-        "result": "string (specific, measurable outcome: '[X] improved', 'Went from [A] to [B]')"
-      }
-    ],
-    "case_studies": [
-      {
-        "title": "string (e.g., 'How Jane Doubled Her Energy in 14 Days')",
-        "intro": "string (who was this person, what was their challenge?)",
-        "mechanism": "string (what specifically did they do?)",
-        "results": "string (measurable outcomes)"
-      }
-    ]
+    "stats": [{"number": "string", "label": "string"}],
+    "testimonials": [{"quote": "string", "author": "string", "role": "string"}]
   },
-
-  "fascination_bullets": [
-    "string — use 25 Formulas: Specific Number, Hidden, Counterintuitive, Warning, Question, How-To, Mistake, Best/Worst, Simple, Story, Forbidden, Instant, Without, Authority, Discovery, Comparison, Page Reference, Even If, Never, Truth About, Weird Trick, Proof, Fear, Insider, Magic Word"
-  ],
-
-  "objection_handling": [
-    {
-      "objection": "string (e.g., 'Is it really going to work for me?')",
-      "response": "string (3-4 sentences handling the objection with proof, mechanism, or guarantee)"
-    }
-  ],
-
-  "ctas": {
-    "primary": "string — main CTA (benefit + action, e.g., 'Start My 14-Day Free Trial')",
-    "secondary": "string — softer alternative (e.g., 'Learn More')",
-    "final": "string — closing CTA with urgency (e.g., 'Don\\'t Wait — Claim Your Spot Now')"
-  },
-
-  "guarantee": {
-    "headline": "string (e.g., 'Your Risk Is Completely Eliminated')",
-    "body": "string (3-4 sentences of risk-reversal copy, positioning guarantee as confidence not desperation)",
-    "terms": "string (e.g., '60-Day Money-Back Guarantee', 'Full Refund If Not 100% Satisfied')"
-  },
-
-  "postscript": {
-    "ps_1": "string (reinforce biggest benefit or curiosity hook)",
-    "ps_2": "string or null (optional: urgency or scarcity angle)",
-    "ps_3": "string or null (optional: strongest proof point or final objection handle)"
-  },
-
-  "meta": {
-    "title": "string — SEO optimized, includes primary keyword, benefit-driven",
-    "description": "string — click-optimized (155 chars max), includes curiosity hook and CTA"
-  }
+  "objection_handling": [{"objection": "string", "response": "string"}],
+  "unverified_claims": ["any claims that need verification"]
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 12000);
+  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-5-20250929', 8000);
   const copyData = parseJSON(text);
   return { data: copyData, tokensUsed };
 }
 
-// STEP 5: DESIGN - Generate complete HTML page (full-generation approach)
-// Claude generates the entire page HTML with full creative control,
-// using our CSS variable system and base styles for consistency.
+// STEP 5: DESIGN - Generate complete HTML page
+// Simplified, focused prompt. No CSS framework dump. Just brand + copy + page type.
 async function runDesign(job) {
   const research = job.research_data || {};
   const brand = job.brand_data || {};
@@ -850,169 +636,137 @@ async function runDesign(job) {
   const pageType = job.page_type;
   const companyName = research.company_name || 'Our Company';
 
-  // Build the CSS foundation — Claude will embed this in the page
-  const brandCSS = generateBrandCSS(brand);
-  const baseStyles = getBaseStyles();
+  // Extract simple brand values (no CSS framework dump)
+  const primaryColor = brand.colors?.primary || brand.style_guide?.primary_color || '#1a1a2e';
+  const secondaryColor = brand.colors?.secondary || brand.style_guide?.secondary_color || '#16213e';
+  const accentColor = brand.colors?.accent || brand.style_guide?.accent_color || '#e94560';
 
-  // Determine fonts — use brand fonts if available, otherwise pair editorial fonts
+  // Determine fonts
   const headingFont = brand.typography?.heading_font || brand.style_guide?.heading_font || '';
   const bodyFont = brand.typography?.body_font || brand.style_guide?.body_font || '';
 
-  // Choose Google Fonts link based on brand or editorial defaults
-  let googleFontsLink;
-  if (headingFont && headingFont !== "'Inter', sans-serif") {
-    const cleanHeading = headingFont.replace(/'/g, '').split(',')[0].trim();
-    const cleanBody = bodyFont ? bodyFont.replace(/'/g, '').split(',')[0].trim() : 'Inter';
-    googleFontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(cleanHeading)}:wght@400;500;600;700;800&family=${encodeURIComponent(cleanBody)}:wght@300;400;500;600;700&display=swap" rel="stylesheet">`;
-  } else {
-    // Default editorial font pairing for high-quality output
-    const fontPairings = {
-      advertorial: { heading: 'Playfair Display', body: 'Source Sans Pro' },
-      'sales-letter': { heading: 'Merriweather', body: 'Open Sans' },
-      listicle: { heading: 'DM Sans', body: 'Inter' },
-      quiz: { heading: 'Poppins', body: 'Inter' },
-      'vip-signup': { heading: 'Cormorant Garamond', body: 'Montserrat' },
-      calculator: { heading: 'Space Grotesk', body: 'Inter' },
-    };
-    const pairing = fontPairings[pageType] || fontPairings.advertorial;
-    googleFontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(pairing.heading)}:wght@400;500;600;700;800&family=${encodeURIComponent(pairing.body)}:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">`;
-    // Override CSS variables for the font pairing
-    brand._designFontOverride = {
-      heading: `'${pairing.heading}', Georgia, serif`,
-      body: `'${pairing.body}', 'Inter', sans-serif`
-    };
-  }
+  // Default editorial font pairings per page type
+  const fontPairings = {
+    advertorial: { heading: 'Playfair Display', body: 'Source Sans Pro' },
+    'sales-letter': { heading: 'Merriweather', body: 'Open Sans' },
+    listicle: { heading: 'DM Sans', body: 'Inter' },
+    quiz: { heading: 'Poppins', body: 'Inter' },
+    'vip-signup': { heading: 'Cormorant Garamond', body: 'Montserrat' },
+    calculator: { heading: 'Space Grotesk', body: 'Inter' },
+  };
+  const pairing = fontPairings[pageType] || fontPairings.advertorial;
+  const useHeading = headingFont && headingFont !== "'Inter', sans-serif"
+    ? headingFont.replace(/'/g, '').split(',')[0].trim()
+    : pairing.heading;
+  const useBody = bodyFont && bodyFont !== "'Inter', sans-serif"
+    ? bodyFont.replace(/'/g, '').split(',')[0].trim()
+    : pairing.body;
 
   // Collect real images from scraper
   const scrapedImages = research._scrapedImages || [];
-  const imageContext = scrapedImages.length > 0
-    ? `\n## REAL PRODUCT IMAGES — YOU MUST USE THESE:\n${scrapedImages.slice(0, 10).map((img, i) => `${i + 1}. URL: ${img.url}\n   Category: ${img.category}${img.alt ? '\n   Alt: ' + img.alt : ''}`).join('\n')}\n\nCRITICAL IMAGE RULES:\n- You MUST include at least 2-3 <img> tags using the real URLs above\n- Use the first hero/product image as the main hero image after the headline\n- Use additional product images in the product showcase and proof sections\n- Every <img> tag must use one of the EXACT URLs listed above\n- Set width="100%" and style="max-width:800px;border-radius:12px" for hero images\n- Set width="100%" and style="max-width:400px;border-radius:8px" for product images\n- Add proper alt text describing the product\n- Do NOT use placeholder.com, via.placeholder, picsum, unsplash, or any dummy image service\n- Do NOT use emoji or gradient backgrounds as substitutes for real product images\n`
-    : '\nNote: No product images were scraped. Use styled gradient backgrounds and CSS-based visual treatments. Do NOT use placeholder.com or dummy image URLs. Do NOT use emoji as design elements.\n';
+  const imageList = scrapedImages.length > 0
+    ? scrapedImages.slice(0, 8).map((img, i) => `${i + 1}. ${img.url} (${img.category})`).join('\n')
+    : '';
 
-  const systemPrompt = `You are an elite landing page designer and developer who creates stunning, conversion-optimized pages. You generate COMPLETE, production-ready HTML with embedded CSS.
+  // Page-type-specific design guidelines
+  const designGuidelines = {
+    advertorial: `Design as a premium editorial/news article layout:
+- Narrow content column (max-width: 700px), centered
+- Sticky nav: company name left, CTA button right
+- Hero: category label, large serif headline, italic subheadline, byline with date
+- Feature image below hero (full column width)
+- Drop cap on first paragraph
+- Pull quotes in styled blockquotes (left border accent)
+- Dark background sections for key data/science callouts
+- Statistics displayed as large numbers in a 3-column row
+- Testimonials as simple blockquotes with attribution
+- FAQ as clickable accordion items
+- Native ad disclosure at bottom
+- Reading progress bar at very top`,
+    'sales-letter': `Design as a direct response sales letter:
+- Clean, single-column layout (max-width: 800px)
+- Large, bold headline at top
+- Long-form body with clear section breaks
+- Product showcase cards on dark background
+- Testimonial cards with star ratings
+- Guarantee badge/section
+- Multiple CTA buttons throughout`,
+    listicle: `Design as a numbered list article:
+- Clean article layout, narrow column
+- Numbered items with card-style containers
+- Alternating layouts for variety
+- Progress indicator showing list position`,
+    quiz: `Design as an interactive quiz:
+- Full-width question cards
+- Progress bar showing completion
+- JavaScript-driven question flow
+- Results page with personalized recommendation`,
+    'vip-signup': `Design as a premium exclusive offer:
+- Elegant, minimal layout
+- Premium color palette
+- Limited-spots counter
+- Single prominent CTA`
+  };
 
-Your pages are indistinguishable from those created by top design agencies. They feature:
-- Magazine-quality editorial layouts
-- Sophisticated typography with proper font pairing
-- Rich visual hierarchy using whitespace, color, and scale
-- Interactive elements (FAQ accordions, scroll animations, progress bars)
-- Mobile-first responsive design
-- Conversion-optimized CTAs and social proof placement
+  const userPrompt = `Create a stunning, conversion-optimized ${pageType} landing page using this copy and brand guide.
 
-You will receive copy data, strategy, and brand guidelines. Generate the COMPLETE HTML page.
+## BRAND GUIDE
+Primary Color: ${primaryColor}
+Secondary Color: ${secondaryColor}
+Accent Color: ${accentColor}
+Heading Font: ${useHeading}
+Body Font: ${useBody}
+Button Style: ${brand.style_guide?.button_style || 'rounded, accent color background, white text'}
+Spacing: ${brand.style_guide?.spacing_scale || 'generous whitespace'}
 
-CRITICAL RULES:
-1. Return ONLY the complete HTML document starting with <!DOCTYPE html> and ending with </html>. The page MUST be complete with closing </body> and </html> tags.
-2. ALL CSS must be embedded in a <style> tag, no external stylesheets except Google Fonts
-3. ALL JavaScript must be embedded in <script> tags, no external scripts
-4. Use the CSS variable system provided (brand colors, spacing, shadows)
-5. Include interactive features: FAQ accordion toggle, scroll animations, reading progress bar
-6. Forms must post to "https://runads-platform.vercel.app/api/track" with a hidden input name="page_id" value="{{PAGE_ID}}"
-7. NEVER use placeholder image URLs. If real scraped images are provided, you MUST use them in <img> tags. If none provided, use CSS gradients.
-8. Every statistic, testimonial, and claim must come from the copy data. Fill every section with real content.
-9. DO NOT leave any section empty or with placeholder text like "Lorem ipsum" or "{{PLACEHOLDER}}"
-10. NEVER use em dashes in any text content. Use commas, colons, semicolons, or periods instead. Em dashes are a telltale sign of AI content.
-11. NEVER use emoji characters as design elements. Use CSS shapes, icons, or actual images instead.
-12. The page MUST end with proper closing tags. Do NOT run out of content. If the page is getting long, simplify the CSS rather than truncating the HTML structure.`;
-
-  const userPrompt = `Create a stunning, conversion-optimized ${pageType} landing page.
-
-## GOOGLE FONTS LINK (include this exactly in <head>):
-${googleFontsLink}
-
-## CSS FOUNDATION (embed this in your <style> tag, then add page-specific styles after):
-${brandCSS}
-${brand._designFontOverride ? `
-/* Font Override */
-:root {
-  --heading-font: ${brand._designFontOverride.heading};
-  --body-font: ${brand._designFontOverride.body};
-}` : ''}
-${baseStyles}
-
-## COMPANY & BRAND
-Company: ${companyName}
-Industry: ${research.industry || 'Not specified'}
-Tone: ${brand.brand_voice?.tone || job.input_data.tone || 'Professional & Trustworthy'}
-${brand.brand_voice?.keywords?.length ? `Keywords: ${brand.brand_voice.keywords.join(', ')}` : ''}
-${brand.brand_voice?.do?.length ? `Voice Do's: ${brand.brand_voice.do.join('; ')}` : ''}
-
-## COPY DATA (use this content to fill all sections):
+## COPY DATA
 ${JSON.stringify(copy, null, 2)}
 
-## STRATEGY:
-${JSON.stringify(strategy, null, 2)}
+## COMPANY
+Name: ${companyName}
+Industry: ${research.industry || 'Not specified'}
+Products: ${JSON.stringify((research.products_services || []).slice(0, 3))}
+Website: ${research.url || job.input_data?.url || ''}
 
-## RESEARCH:
-Value Propositions: ${JSON.stringify(research.value_propositions || [])}
-Testimonials: ${JSON.stringify(research.product_research?.proof_inventory?.testimonials || research.testimonials || [])}
-Products: ${JSON.stringify(research.products_services || [])}
-Key Claims: ${JSON.stringify(research.key_claims || [])}
-${imageContext}
+${imageList ? `## PRODUCT IMAGES (use these in <img> tags)
+${imageList}
+You MUST use at least 2 of these images. Use the first as the hero/feature image.` : '## IMAGES\nNo product images available. Use styled CSS backgrounds instead. Do NOT use placeholder image services.'}
 
-## PAGE TYPE: ${pageType.toUpperCase()}
-${getPageTypeDesignInstructions(pageType)}
+## DESIGN GUIDELINES
+${designGuidelines[pageType] || designGuidelines.advertorial}
 
-## DESIGN REQUIREMENTS:
+## REQUIREMENTS
+- Return ONLY complete HTML starting with <!DOCTYPE html> and ending with </html>
+- Embed ALL CSS in a <style> tag. Only external resource: Google Fonts.
+- Include this in <head>: <link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(useHeading)}:wght@400;600;700;800&family=${encodeURIComponent(useBody)}:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+- Mobile-responsive (use CSS Grid/Flexbox, @media queries for < 768px)
+- Apply EXACT brand colors from the brand guide
+- Modern 2025 design: generous whitespace, subtle shadows, smooth transitions
+- Smooth scroll behavior
+- NEVER use em dashes. Use commas, colons, or periods.
+- NEVER use emoji as design elements.
+- Every section must be filled with real content from the copy data.
+- The page MUST be complete with </body> and </html> tags. Do not truncate.
+- Include interactive FAQ accordion if the copy has objection handling or FAQ items.
+- Include viewport meta tag and Open Graph meta tags.
 
-### Structure for ${pageType === 'advertorial' ? 'ADVERTORIAL' : pageType.toUpperCase()}:
-${pageType === 'advertorial' ? `
-1. Reading progress bar (fixed top, accent color, updates on scroll)
-2. Sticky navigation with company name + CTA button
-3. Hero section: category badge, editorial headline, subheadline, author byline with date
-4. Hero image (use real product image if available, otherwise use a styled gradient/pattern background)
-5. Opening narrative with drop cap on first letter
-6. Statistics bar (3 key metrics with large numbers)
-7. Problem section with editorial body, pullquotes, highlight boxes
-8. Mid-article CTA
-9. Solution section on dark background
-10. Science/mechanism section with highlight boxes and data callouts
-11. Product showcase (dark card with features list, CTA, guarantee)
-12. Testimonials grid (3 cards with stars, quotes, author names, verified badges)
-13. FAQ accordion (clickable questions that expand/collapse)
-14. Final CTA section
-15. Footer with disclaimer/disclosure` : `
-Follow standard ${pageType} layout conventions with proper section hierarchy.`}
+Return ONLY the complete HTML. No explanations.`;
 
-### Visual Quality Standards:
-- Use the heading font for h1/h2/h3 and body font for paragraphs
-- Proper line height (1.7-1.8 for body, 1.1-1.2 for headings)
-- Section padding: 80-100px vertical on desktop, 48-60px on mobile
-- Max content width: 800px for editorial content, 1200px for full-width sections
-- Use CSS classes from the base styles: .section, .section-dark, .section-alt, .container, .container-narrow, .cta-btn, .cta-btn-dark, .testimonial-card, .stat-item, .faq-item, .highlight-box, .pullquote, .badge, .article-body, .drop-cap, etc.
-- Include hover effects on cards (translateY(-4px) + shadow)
-- Scroll animations: elements fade in from below as they enter viewport
-- FAQ items toggle open/close on click
+  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-5-20250929', 16000);
 
-### Critical Quality Checks:
-- Every <img> must have a descriptive alt attribute
-- Include viewport meta tag
-- Include Open Graph meta tags
-- All text must be real content from the copy data — NO placeholders
-- Statistics must have actual numbers (from copy data social_proof.stats)
-- Testimonials must have real quotes and names (from copy data social_proof.testimonials)
-- CTA buttons must use text from copy data ctas object
-
-Return the COMPLETE HTML document. Nothing else.`;
-
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 32000);
-
-  // Clean up the response — extract just the HTML
+  // Clean up the response
   let html = text;
-  // Remove markdown code blocks if present
   html = html.replace(/^```html?\s*/i, '').replace(/\s*```$/i, '');
-  // Ensure it starts with DOCTYPE
   if (!html.trim().startsWith('<!DOCTYPE') && !html.trim().startsWith('<html')) {
     const docIdx = html.indexOf('<!DOCTYPE');
     const htmlIdx = html.indexOf('<html');
     const startIdx = docIdx >= 0 ? docIdx : htmlIdx;
     if (startIdx > 0) html = html.substring(startIdx);
   }
-  // Ensure it ends with </html>
   const htmlEndIdx = html.lastIndexOf('</html>');
   if (htmlEndIdx > 0) html = html.substring(0, htmlEndIdx + 7);
 
-  return { data: { html, template_type: pageType, design_system_version: '4.0' }, tokensUsed };
+  return { data: { html, template_type: pageType, design_system_version: '5.0' }, tokensUsed };
 }
 
 // STEP 6: FACTCHECK - Verify claims against verified_claims database
@@ -1062,8 +816,8 @@ Products: ${JSON.stringify(research.products_services || [])}
 Data Points: ${JSON.stringify(research.product_research?.proof_inventory?.data_points || [])}
 
 COPY TO VERIFY:
-Headlines: ${JSON.stringify(copy.headlines || {})}
-Body Sections: ${JSON.stringify(copy.body_sections || [])}
+Hero: ${JSON.stringify(copy.hero || {})}
+Sections: ${JSON.stringify((copy.sections || copy.body_sections || []).slice(0, 5))}
 Social Proof Stats: ${JSON.stringify(copy.social_proof?.stats || [])}
 Testimonials Used: ${JSON.stringify(copy.social_proof?.testimonials || [])}
 
