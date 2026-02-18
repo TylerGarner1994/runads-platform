@@ -627,13 +627,22 @@ async function runCopy(job) {
 - **Joe Sugarman's 28 Fascination Triggers**: Specific, Hidden, Counterintuitive, Warning, Question, How-To, Mistake, Best/Worst, Simple, Story Tease, Forbidden, Instant, Without, Authority, Discovery, Comparison, Page Reference, Even If, Never, Truth About, Weird Trick, Proof, Fear-Based, Insider, Magic Word
 
 **Your Approach:**
-1. **5-Phase Process**: Deep Research → Strategic Foundation → Copy Architecture → Psychological Amplification → Final Polish
+1. **5-Phase Process**: Deep Research > Strategic Foundation > Copy Architecture > Psychological Amplification > Final Polish
 2. **Awareness Calibration**: Match your opening to where the market is, then move them to Most-Aware
 3. **Proof Hierarchy**: Stack proof from strongest (third-party credentialed) to weakest (claims)
 4. **Unique Mechanism**: Position the "why this works" as the core story, not a feature list
-5. **Narrative Arc**: Every section has tension → insight → resolution
+5. **Narrative Arc**: Every section has tension, insight, then resolution
 6. **Emotional + Logical**: Lead with emotion, support with data
 7. **Conversational Specificity**: Write like Halbert (conversational) with Ogilvy's research precision
+
+CRITICAL FORMATTING RULE — NEVER USE EM DASHES:
+- NEVER use the em dash character (—) anywhere in your copy. It is a dead giveaway of AI-generated content.
+- Instead of em dashes, use commas, periods, semicolons, colons, or rewrite the sentence.
+- BAD: "This supplement — unlike anything else — actually works"
+- GOOD: "This supplement, unlike anything else, actually works"
+- BAD: "The results were clear — 93% improvement"
+- GOOD: "The results were clear: 93% improvement"
+- This rule applies to ALL text output including headlines, body copy, testimonials, CTAs, and meta descriptions.
 
 Return valid JSON only.`;
 
@@ -877,8 +886,8 @@ async function runDesign(job) {
   // Collect real images from scraper
   const scrapedImages = research._scrapedImages || [];
   const imageContext = scrapedImages.length > 0
-    ? `\n## REAL PRODUCT IMAGES (use these — do NOT use placeholder URLs):\n${scrapedImages.slice(0, 10).map((img, i) => `${i + 1}. ${img.url} (${img.category}${img.alt ? ', alt: ' + img.alt : ''})`).join('\n')}\nIMPORTANT: Use these real image URLs in <img> tags. Do NOT use placeholder.com, via.placeholder, picsum, or similar dummy image services.\n`
-    : '\nNote: No product images were scraped. Use background colors, gradients, and icon-based designs instead of placeholder images. Do NOT use placeholder.com or dummy image URLs.\n';
+    ? `\n## REAL PRODUCT IMAGES — YOU MUST USE THESE:\n${scrapedImages.slice(0, 10).map((img, i) => `${i + 1}. URL: ${img.url}\n   Category: ${img.category}${img.alt ? '\n   Alt: ' + img.alt : ''}`).join('\n')}\n\nCRITICAL IMAGE RULES:\n- You MUST include at least 2-3 <img> tags using the real URLs above\n- Use the first hero/product image as the main hero image after the headline\n- Use additional product images in the product showcase and proof sections\n- Every <img> tag must use one of the EXACT URLs listed above\n- Set width="100%" and style="max-width:800px;border-radius:12px" for hero images\n- Set width="100%" and style="max-width:400px;border-radius:8px" for product images\n- Add proper alt text describing the product\n- Do NOT use placeholder.com, via.placeholder, picsum, unsplash, or any dummy image service\n- Do NOT use emoji or gradient backgrounds as substitutes for real product images\n`
+    : '\nNote: No product images were scraped. Use styled gradient backgrounds and CSS-based visual treatments. Do NOT use placeholder.com or dummy image URLs. Do NOT use emoji as design elements.\n';
 
   const systemPrompt = `You are an elite landing page designer and developer who creates stunning, conversion-optimized pages. You generate COMPLETE, production-ready HTML with embedded CSS.
 
@@ -893,15 +902,18 @@ Your pages are indistinguishable from those created by top design agencies. They
 You will receive copy data, strategy, and brand guidelines. Generate the COMPLETE HTML page.
 
 CRITICAL RULES:
-1. Return ONLY the complete HTML document — starting with <!DOCTYPE html> and ending with </html>
-2. ALL CSS must be embedded in a <style> tag — no external stylesheets except Google Fonts
-3. ALL JavaScript must be embedded in <script> tags — no external scripts
+1. Return ONLY the complete HTML document starting with <!DOCTYPE html> and ending with </html>. The page MUST be complete with closing </body> and </html> tags.
+2. ALL CSS must be embedded in a <style> tag, no external stylesheets except Google Fonts
+3. ALL JavaScript must be embedded in <script> tags, no external scripts
 4. Use the CSS variable system provided (brand colors, spacing, shadows)
 5. Include interactive features: FAQ accordion toggle, scroll animations, reading progress bar
 6. Forms must post to "https://runads-platform.vercel.app/api/track" with a hidden input name="page_id" value="{{PAGE_ID}}"
-7. NEVER use placeholder image URLs. Either use real scraped images (if provided) or use CSS-based visual treatments
-8. Every statistic, testimonial, and claim must come from the copy data — fill every section with real content
-9. DO NOT leave any section empty or with placeholder text like "Lorem ipsum" or "{{PLACEHOLDER}}"`;
+7. NEVER use placeholder image URLs. If real scraped images are provided, you MUST use them in <img> tags. If none provided, use CSS gradients.
+8. Every statistic, testimonial, and claim must come from the copy data. Fill every section with real content.
+9. DO NOT leave any section empty or with placeholder text like "Lorem ipsum" or "{{PLACEHOLDER}}"
+10. NEVER use em dashes in any text content. Use commas, colons, semicolons, or periods instead. Em dashes are a telltale sign of AI content.
+11. NEVER use emoji characters as design elements. Use CSS shapes, icons, or actual images instead.
+12. The page MUST end with proper closing tags. Do NOT run out of content. If the page is getting long, simplify the CSS rather than truncating the HTML structure.`;
 
   const userPrompt = `Create a stunning, conversion-optimized ${pageType} landing page.
 
@@ -983,7 +995,7 @@ Follow standard ${pageType} layout conventions with proper section hierarchy.`}
 
 Return the COMPLETE HTML document. Nothing else.`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 16000);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 32000);
 
   // Clean up the response — extract just the HTML
   let html = text;
@@ -1258,15 +1270,49 @@ async function runAssembly(job) {
   // Generate a slug
   const slug = `${pageType}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50)}-${Date.now().toString(36)}`;
 
+  // ── Ensure HTML has proper closing tags (Claude sometimes truncates) ──
+  if (!html.includes('</body>')) {
+    // HTML was truncated — close any open tags and add closing structure
+    // First, close any potentially open <section>, <div>, <main>, <article> tags
+    const openTags = [];
+    const tagPattern = /<(section|div|main|article|aside|footer|header|nav)[\s>]/gi;
+    const closePattern = /<\/(section|div|main|article|aside|footer|header|nav)>/gi;
+    let m;
+    const openCounts = {};
+    const closeCounts = {};
+    while ((m = tagPattern.exec(html)) !== null) {
+      const tag = m[1].toLowerCase();
+      openCounts[tag] = (openCounts[tag] || 0) + 1;
+    }
+    while ((m = closePattern.exec(html)) !== null) {
+      const tag = m[1].toLowerCase();
+      closeCounts[tag] = (closeCounts[tag] || 0) + 1;
+    }
+    // Close unclosed tags in reverse nesting order
+    for (const tag of ['div', 'section', 'article', 'main', 'aside', 'footer', 'header', 'nav']) {
+      const unclosed = (openCounts[tag] || 0) - (closeCounts[tag] || 0);
+      for (let i = 0; i < unclosed; i++) {
+        html += `</${tag}>`;
+      }
+    }
+    html += '\n</body>\n</html>';
+    console.warn('Assembly: HTML was truncated, added closing tags');
+  }
+  if (!html.includes('</html>')) {
+    html += '\n</html>';
+  }
+
+  // ── Replace em dashes with regular dashes in final HTML ──
+  // Em dashes are a telltale sign of AI-generated content
+  html = html.replace(/\u2014/g, ' - ');
+  html = html.replace(/&mdash;/g, ' - ');
+
   // Inject tracking script + admin editor widget
   const trackingScript = generateTrackingScript(slug);
   const adminWidget = generateAdminWidgetScript(slug);
   const injectedScripts = trackingScript + (adminWidget || '');
-  if (html.includes('</body>')) {
-    html = html.replace('</body>', `${injectedScripts}\n</body>`);
-  } else {
-    html += injectedScripts;
-  }
+  // Always inject before </body> (which is now guaranteed to exist)
+  html = html.replace('</body>', `${injectedScripts}\n</body>`);
 
   // Create page record
   const pageId = 'pg_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
@@ -1380,39 +1426,33 @@ function generateTrackingScript(pageId) {
 
 // ============================================================
 // ADMIN CHAT WIDGET SCRIPT GENERATOR
+// Builds widget entirely via DOM API (no innerHTML) to avoid
+// broken rendering when HTML structure is incomplete
 // ============================================================
 function generateAdminWidgetScript(slug) {
   const adminKey = process.env.ADMIN_EDIT_KEY || '';
   if (!adminKey) return ''; // Don't inject widget if no admin key configured
   return `
-<!-- RunAds Admin Editor Widget -->
 <script>
 (function(){
   var SLUG='${slug}',KEY='${adminKey}',API='https://runads-platform.vercel.app/api/chat';
   var panel=null,open=false;
+  function el(tag,styles,txt){var e=document.createElement(tag);if(styles)Object.assign(e.style,styles);if(txt)e.textContent=txt;return e;}
   function createPanel(){
     if(panel)return;
-    var d=document.createElement('div');
-    d.id='__ra_editor';
-    d.innerHTML=
-      '<div style="position:fixed;bottom:0;right:20px;width:380px;height:480px;background:#1a1a2e;border-radius:12px 12px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,0.3);display:flex;flex-direction:column;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#fff;">'+
-        '<div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">'+
-          '<span style="font-weight:600;font-size:14px;">\\u2728 RunAds Editor</span>'+
-          '<button id="__ra_close" style="background:none;border:none;color:#9ca3af;font-size:18px;cursor:pointer;padding:0 4px;">\\u2715</button>'+
-        '</div>'+
-        '<div id="__ra_msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;">'+
-          '<div style="background:rgba(255,255,255,0.08);padding:10px 12px;border-radius:8px;font-size:13px;color:#d1d5db;line-height:1.5;">Hi! Describe any changes you want to make to this page. For example:<br><br>\\u2022 \\"Change the headline to....\\"<br>\\u2022 \\"Make the CTA button red\\"<br>\\u2022 \\"Add a money-back guarantee badge\\"</div>'+
-        '</div>'+
-        '<div style="padding:12px;border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:8px;">'+
-          '<input id="__ra_input" type="text" placeholder="Describe your change..." style="flex:1;padding:10px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:13px;background:rgba(255,255,255,0.06);color:#fff;outline:none;">'+
-          '<button id="__ra_send" style="padding:10px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap;">Send</button>'+
-        '</div>'+
-      '</div>';
-    document.body.appendChild(d);
-    panel=d;
-    document.getElementById('__ra_close').onclick=toggle;
-    document.getElementById('__ra_send').onclick=send;
-    document.getElementById('__ra_input').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+    var w=el('div',{position:'fixed',bottom:'0',right:'20px',width:'380px',height:'480px',background:'#1a1a2e',borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 24px rgba(0,0,0,0.3)',display:'flex',flexDirection:'column',zIndex:'99999',fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif',color:'#fff'});
+    var hd=el('div',{padding:'14px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(255,255,255,0.1)'});
+    hd.appendChild(el('span',{fontWeight:'600',fontSize:'14px'},'RunAds Editor'));
+    var xb=el('button',{background:'none',border:'none',color:'#9ca3af',fontSize:'18px',cursor:'pointer',padding:'0 4px'},'X');
+    xb.onclick=toggle;hd.appendChild(xb);w.appendChild(hd);
+    var ms=el('div',{flex:'1',overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:'10px'});ms.id='__ra_msgs';
+    ms.appendChild(el('div',{background:'rgba(255,255,255,0.08)',padding:'10px 12px',borderRadius:'8px',fontSize:'13px',color:'#d1d5db',lineHeight:'1.5'},'Describe any changes you want to make to this page.'));
+    w.appendChild(ms);
+    var ft=el('div',{padding:'12px',borderTop:'1px solid rgba(255,255,255,0.1)',display:'flex',gap:'8px'});
+    var ip=document.createElement('input');ip.id='__ra_input';ip.type='text';ip.placeholder='Describe your change...';Object.assign(ip.style,{flex:'1',padding:'10px 12px',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'8px',fontSize:'13px',background:'rgba(255,255,255,0.06)',color:'#fff',outline:'none'});
+    ip.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send();}});ft.appendChild(ip);
+    var sb=el('button',{padding:'10px 16px',background:'#6366f1',color:'#fff',border:'none',borderRadius:'8px',cursor:'pointer',fontSize:'13px',fontWeight:'500'},'Send');sb.id='__ra_send';sb.onclick=send;ft.appendChild(sb);
+    w.appendChild(ft);panel=el('div',{display:'none'});panel.id='__ra_editor';panel.appendChild(w);document.body.appendChild(panel);
   }
   function toggle(){
     if(!panel)createPanel();
