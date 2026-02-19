@@ -294,6 +294,15 @@ export default async function handler(req, res) {
   await runMigration('Add page_views.country', sql`
     ALTER TABLE page_views ADD COLUMN IF NOT EXISTS country TEXT
   `);
+  await runMigration('Add page_views.ip_address', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS ip_address TEXT
+  `);
+  await runMigration('Add page_views.referrer', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS referrer TEXT
+  `);
+  await runMigration('Add page_views.user_agent', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS user_agent TEXT
+  `);
   await runMigration('Add page_views.created_at (alias for timestamp)', sql`
     ALTER TABLE page_views ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   `);
