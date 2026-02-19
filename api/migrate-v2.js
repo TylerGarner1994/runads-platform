@@ -294,6 +294,13 @@ export default async function handler(req, res) {
   await runMigration('Add page_views.country', sql`
     ALTER TABLE page_views ADD COLUMN IF NOT EXISTS country TEXT
   `);
+  await runMigration('Add page_views.created_at (alias for timestamp)', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+  // Backfill created_at from timestamp for existing rows
+  await runMigration('Backfill page_views.created_at from timestamp', sql`
+    UPDATE page_views SET created_at = timestamp WHERE created_at IS NULL AND timestamp IS NOT NULL
+  `);
 
   // ============================================================
   // 12. LANDING_PAGES - Add client_id column
