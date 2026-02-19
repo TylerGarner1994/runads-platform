@@ -197,7 +197,7 @@ ${getPageTypeInstructions(page_type)}
 
 CRITICAL: Return ONLY the complete HTML. No explanations, no markdown code blocks. Start with <!DOCTYPE html> and end with </html>.`;
 
-    const genResponse = await callClaude(apiKey, generatePrompt, 'claude-sonnet-4-5-20250929');
+    const genResponse = await callClaude(apiKey, generatePrompt, 'claude-sonnet-4-6');
     let html = cleanHtmlResponse(genResponse.content[0].text);
 
     // ============================================================
@@ -261,7 +261,7 @@ ${reviewData.revision_instructions}
 Apply ALL suggested improvements while maintaining the existing design and tracking code.
 Return ONLY the complete modified HTML. Start with <!DOCTYPE html>.`;
 
-      const revResponse = await callClaude(apiKey, revisionPrompt, 'claude-sonnet-4-5-20250929');
+      const revResponse = await callClaude(apiKey, revisionPrompt, 'claude-sonnet-4-6');
       html = cleanHtmlResponse(revResponse.content[0].text);
     }
 
@@ -329,7 +329,7 @@ Return ONLY the complete modified HTML. Start with <!DOCTYPE html>.`;
 // HELPERS
 // ============================================================
 
-async function callClaude(apiKey, prompt, model = 'claude-sonnet-4-5-20250929') {
+async function callClaude(apiKey, prompt, model = 'claude-sonnet-4-6') {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {

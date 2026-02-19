@@ -47,7 +47,7 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       max_tokens: 8000,
       system: systemPrompt,
       messages: [

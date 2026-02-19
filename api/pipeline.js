@@ -16,7 +16,7 @@ import { getResearchSkillContext, getStrategySkillContext, getCopySkillContext, 
 // ============================================================
 // ANTHROPIC API HELPER
 // ============================================================
-async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-5-20250929', maxTokens = 8192) {
+async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-6', maxTokens = 8192) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
 
@@ -234,7 +234,7 @@ Return a JSON object with these fields:
   "emotional_hooks": ["string (what moves customers emotionally?)"]
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 8192);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-6', 8192);
   const researchData = parseJSON(text);
   researchData._websiteMeta = websiteData.meta || {};
   researchData._scrapedColors = websiteData.colors || [];
@@ -428,7 +428,7 @@ Return a JSON object:
   }
 }`;
 
-  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-5-20250929', 4096);
+  const { text, tokensUsed } = await callClaude(systemPrompt, userPrompt, 'claude-sonnet-4-6', 4096);
   const brandData = parseJSON(text);
   return { data: brandData, tokensUsed };
 }
@@ -510,7 +510,7 @@ Return JSON:
   "tone_guidelines": "string"
 }`;
 
-  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-5-20250929', 3000);
+  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 3000);
   const strategyData = parseJSON(text);
   return { data: strategyData, tokensUsed };
 }
@@ -621,7 +621,7 @@ Return JSON:
   "unverified_claims": ["any claims that need verification"]
 }`;
 
-  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-5-20250929', 8000);
+  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 8000);
   const copyData = parseJSON(text);
   return { data: copyData, tokensUsed };
 }
@@ -752,7 +752,7 @@ ${designGuidelines[pageType] || designGuidelines.advertorial}
 
 Return ONLY the complete HTML. No explanations.`;
 
-  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-5-20250929', 16000);
+  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 16000);
 
   // Clean up the response
   let html = text;
