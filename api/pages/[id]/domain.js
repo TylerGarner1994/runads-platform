@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       }
 
       // Determine domain type
-      const domainType = type || (domain.includes('pages.runads') ? 'subdomain' : 'custom');
+      const domainType = type || (domain.includes('pages.runads.com.au') ? 'subdomain' : 'custom');
 
       // Insert new domain
       await sql`
