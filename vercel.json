@@ -28,6 +28,10 @@
       "destination": "/api/clients/[id]/research"
     },
     {
+      "source": "/api/clients/:id/claims",
+      "destination": "/api/clients/[id]/claims"
+    },
+    {
       "source": "/api/clients/:id",
       "destination": "/api/clients/[id]"
     },

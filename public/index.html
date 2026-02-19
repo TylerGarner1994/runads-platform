@@ -4132,6 +4132,20 @@
             <span class="nav-item-label">Leads</span>
           </a>
         </div>
+
+        <div class="nav-divider"></div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Settings</div>
+          <a class="nav-item" data-page="domains">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span class="nav-item-label">Domains</span>
+          </a>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -5183,7 +5197,77 @@
             </div>
           </div>
         </div>
+        <!-- Domains Section -->
+        <div id="domainsSection" class="page-section" style="display: none;">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title">
+                <h2>Landing Page URLs</h2>
+                <p style="color: var(--text-medium); margin-top: 4px;">Your pages are available at <code style="background: var(--bg-light); padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">runads.com.au/p/your-slug</code>. Add a custom domain below to use your own branded URL.</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" onclick="loadDomains()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  Refresh
+                </button>
+                <button class="btn btn-primary" onclick="openAddDomainModal()">+ Add Custom Domain</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: linear-gradient(135deg, rgba(59,159,216,0.05) 0%, rgba(59,159,216,0.02) 100%); border-radius: var(--radius-md); padding: 16px 24px; margin-bottom: 24px; text-align: center;">
+            <span id="domainCount" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-blue);">0</span>
+            <span style="color: var(--text-medium); margin-left: 8px;">Custom Domains</span>
+          </div>
+
+          <div id="domainsContainer">
+            <div style="text-align: center; padding: 60px 20px;">
+              <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, rgba(59,159,216,0.1) 0%, rgba(59,159,216,0.05) 100%); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary-blue)" stroke-width="1.5" opacity="0.6">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              </div>
+              <h3 style="color: var(--text-dark); margin-bottom: 8px;">No custom domains configured</h3>
+              <p style="color: var(--text-medium); margin-bottom: 20px;">Your pages are live at runads.com.au/p/slug. Add a custom domain for branded URLs.</p>
+              <button class="btn btn-primary" onclick="openAddDomainModal()">Add Custom Domain</button>
+            </div>
+          </div>
+        </div>
     </main>
+  </div>
+
+  <!-- Add Domain Modal -->
+  <div class="modal-overlay" id="addDomainModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add Custom Domain</h3>
+        <button class="modal-close" onclick="closeAddDomainModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Domain Name *</label>
+          <input type="text" id="domainNameInput" placeholder="e.g., landing.yourbrand.com" class="form-input">
+          <small style="color: var(--text-medium); margin-top: 4px; display: block;">Enter your custom domain or subdomain</small>
+        </div>
+        <div class="form-group">
+          <label>Landing Page</label>
+          <select id="domainPageSelect" class="form-input">
+            <option value="">-- All pages (wildcard) --</option>
+          </select>
+          <small style="color: var(--text-medium); margin-top: 4px; display: block;">Optionally link to a specific landing page</small>
+        </div>
+        <div style="background: var(--bg-light); border-radius: var(--radius-sm); padding: 16px; margin-top: 16px;">
+          <h4 style="margin-bottom: 8px; font-size: 0.9rem;">DNS Configuration Required</h4>
+          <p style="color: var(--text-medium); font-size: 0.85rem; line-height: 1.5;">After adding, configure a CNAME record pointing to <code style="background: white; padding: 2px 6px; border-radius: 4px;">cname.vercel-dns.com</code></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAddDomainModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveDomain()">Add Domain</button>
+      </div>
+    </div>
   </div>
 
   <!-- Create/Edit Modal -->
@@ -5781,6 +5865,9 @@
         case 'leads':
           showPage('leads');
           break;
+        case 'domains':
+          showPage('domains');
+          break;
         default:
           showPage('dashboard');
       }
@@ -5955,7 +6042,8 @@
         clients: 'Clients',
         analytics: 'Analytics',
         leads: 'Leads',
-        adGenerator: 'Ad Generator'
+        adGenerator: 'Ad Generator',
+        domains: 'Domains'
       };
       const pageTitle = document.getElementById('mainPageTitle') || document.querySelector('.page-title');
       if (pageTitle) pageTitle.textContent = titles[pageName] || 'Dashboard';
@@ -5966,6 +6054,7 @@
       const clientsSection = document.getElementById('clientsSection');
       const clientDetailSection = document.getElementById('clientDetailSection');
       const adGeneratorSection = document.getElementById('adGeneratorSection');
+      const domainsSection = document.getElementById('domainsSection');
 
       // Hide all sections first
       if (dashboardSection) dashboardSection.style.display = 'none';
@@ -5973,6 +6062,7 @@
       if (clientsSection) clientsSection.style.display = 'none';
       if (clientDetailSection) clientDetailSection.style.display = 'none';
       if (adGeneratorSection) adGeneratorSection.style.display = 'none';
+      if (domainsSection) domainsSection.style.display = 'none';
 
       // Map page names to URL hashes
       const urlMap = {
@@ -5981,7 +6071,8 @@
         clients: 'clients',
         adGenerator: 'ad-generator',
         analytics: 'analytics',
-        leads: 'leads'
+        leads: 'leads',
+        domains: 'domains'
       };
 
       // Show relevant sections based on page
@@ -5997,6 +6088,9 @@
       } else if (pageName === 'adGenerator') {
         if (adGeneratorSection) adGeneratorSection.style.display = 'block';
         initAdGenerator();
+      } else if (pageName === 'domains') {
+        if (domainsSection) domainsSection.style.display = 'block';
+        loadDomains();
       }
 
       // Update URL hash (without triggering hashchange event)
@@ -8160,6 +8254,137 @@
       a.download = `ad-generator-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // ============================================
+    // DOMAINS MANAGEMENT
+    // ============================================
+
+    async function loadDomains() {
+      try {
+        const res = await fetch('/api/domains');
+        const result = await res.json();
+        const domains = result.success ? (result.domains || []) : [];
+        const container = document.getElementById('domainsContainer');
+        const countEl = document.getElementById('domainCount');
+
+        if (countEl) countEl.textContent = domains.length;
+
+        if (!container) return;
+
+        if (domains.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px;">
+              <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, rgba(59,159,216,0.1) 0%, rgba(59,159,216,0.05) 100%); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary-blue)" stroke-width="1.5" opacity="0.6">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              </div>
+              <h3 style="color: var(--text-dark); margin-bottom: 8px;">No custom domains configured</h3>
+              <p style="color: var(--text-medium); margin-bottom: 20px;">Your pages are live at runads.com.au/p/slug. Add a custom domain for branded URLs.</p>
+              <button class="btn btn-primary" onclick="openAddDomainModal()">Add Custom Domain</button>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="section-card">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-light);">
+                  <th style="text-align: left; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light);">Domain</th>
+                  <th style="text-align: left; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light);">Page</th>
+                  <th style="text-align: left; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light);">SSL</th>
+                  <th style="text-align: left; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light);">DNS</th>
+                  <th style="text-align: right; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light);">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${domains.map(d => `
+                  <tr style="border-bottom: 1px solid var(--border-light);">
+                    <td style="padding: 12px 16px;">
+                      <strong>${d.domain}</strong>
+                      <span style="display: block; font-size: 0.8rem; color: var(--text-medium);">${d.domain_type || 'custom'}</span>
+                    </td>
+                    <td style="padding: 12px 16px; color: var(--text-medium);">${d.page_name || d.page_id || 'All pages'}</td>
+                    <td style="padding: 12px 16px;">
+                      <span class="status-badge ${d.ssl_status === 'active' ? 'status-live' : 'status-draft'}">${d.ssl_status || 'pending'}</span>
+                    </td>
+                    <td style="padding: 12px 16px;">
+                      <span class="status-badge ${d.dns_configured ? 'status-live' : 'status-draft'}">${d.dns_configured ? 'configured' : 'pending'}</span>
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right;">
+                      <button onclick="deleteDomain('${d.id}')" title="Delete" style="background: none; border: none; cursor: pointer; color: var(--error); font-size: 1.1rem;">🗑️</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      } catch (err) {
+        console.error('Failed to load domains:', err);
+      }
+    }
+
+    function openAddDomainModal() {
+      document.getElementById('addDomainModal').classList.add('active');
+      document.getElementById('domainNameInput').value = '';
+      // Populate page dropdown
+      const select = document.getElementById('domainPageSelect');
+      select.innerHTML = '<option value="">-- All pages (wildcard) --</option>';
+      if (window.allPages) {
+        window.allPages.forEach(p => {
+          select.innerHTML += `<option value="${p.id}">${p.name} (${p.slug})</option>`;
+        });
+      }
+    }
+
+    function closeAddDomainModal() {
+      document.getElementById('addDomainModal').classList.remove('active');
+    }
+
+    async function saveDomain() {
+      const domain = document.getElementById('domainNameInput').value.trim();
+      const pageId = document.getElementById('domainPageSelect').value;
+
+      if (!domain) {
+        alert('Please enter a domain name');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/domains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain, page_id: pageId || null })
+        });
+        const result = await res.json();
+        if (result.success) {
+          closeAddDomainModal();
+          loadDomains();
+        } else {
+          alert(result.error || 'Failed to add domain');
+        }
+      } catch (err) {
+        alert('Error adding domain: ' + err.message);
+      }
+    }
+
+    async function deleteDomain(domainId) {
+      if (!confirm('Are you sure you want to remove this domain?')) return;
+      try {
+        const res = await fetch(`/api/domains?id=${domainId}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) {
+          loadDomains();
+        } else {
+          alert(result.error || 'Failed to delete domain');
+        }
+      } catch (err) {
+        alert('Error deleting domain: ' + err.message);
+      }
     }
   </script>
 </body>
