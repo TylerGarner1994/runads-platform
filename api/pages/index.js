@@ -14,21 +14,38 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      // Get all pages with stats
+      // Get all pages with stats - exclude html_content for performance
       const { rows } = await sql`
         SELECT
-          lp.*,
+          lp.id, lp.name, lp.slug, lp.client_id, lp.client_name, lp.status,
+          lp.page_type, lp.template_type, lp.views, lp.leads,
+          lp.custom_domain, lp.meta_title, lp.meta_description, lp.og_image,
+          lp.created_at, lp.updated_at, lp.deployed_at,
+          lp.generation_metadata, lp.job_id, lp.tracking_pixel,
           (SELECT COUNT(*) FROM page_views WHERE page_id = lp.id) as view_count,
           (SELECT COUNT(*) FROM leads WHERE page_id = lp.id) as lead_count,
           (SELECT COUNT(*) FROM conversions WHERE page_id = lp.id) as conversion_count
         FROM landing_pages lp
         ORDER BY created_at DESC
       `;
-      return res.status(200).json(rows);
+
+      // Add computed fields the frontend expects
+      const pages = rows.map(page => ({
+        ...page,
+        url: `/p/${page.slug}`,
+        clientName: page.client_name || '',
+        ab_test_active: false,
+        generation_job_id: page.job_id || null,
+        factcheck_score: page.generation_metadata?.fact_check_summary?.verified || null,
+        expert_scores: {},
+        variants: []
+      }));
+
+      return res.status(200).json(pages);
     }
 
     if (req.method === 'POST') {
-      const { name, slug, client_name, html_content, meta_title, meta_description, tracking_pixel } = req.body;
+      const { name, slug, client_name, html_content, client_id, page_type, template_type, meta_title, meta_description, tracking_pixel } = req.body;
 
       if (!name || !html_content) {
         return res.status(400).json({ error: 'Name and HTML content are required' });
@@ -39,12 +56,12 @@ export default async function handler(req, res) {
       const processedHtml = injectTrackingScript(html_content, id);
 
       await sql`
-        INSERT INTO landing_pages (id, name, slug, client_name, html_content, meta_title, meta_description, tracking_pixel)
-        VALUES (${id}, ${name}, ${finalSlug}, ${client_name || null}, ${processedHtml}, ${meta_title || null}, ${meta_description || null}, ${tracking_pixel || null})
+        INSERT INTO landing_pages (id, name, slug, client_name, client_id, page_type, template_type, html_content, meta_title, meta_description, tracking_pixel)
+        VALUES (${id}, ${name}, ${finalSlug}, ${client_name || null}, ${client_id || null}, ${page_type || 'custom'}, ${template_type || null}, ${processedHtml}, ${meta_title || name || null}, ${meta_description || null}, ${tracking_pixel || null})
       `;
 
       const { rows } = await sql`SELECT * FROM landing_pages WHERE id = ${id}`;
-      return res.status(201).json(rows[0]);
+      return res.status(201).json({ id, slug: finalSlug, message: 'Page created' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
