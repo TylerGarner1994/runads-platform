@@ -6778,7 +6778,7 @@
                 const views = parseInt(page.view_count) || 0;
                 const leads = parseInt(page.lead_count) || 0;
                 const convRate = views > 0 ? ((leads / views) * 100).toFixed(1) + '%' : '—';
-                const liveUrl = page.status === 'live' ? `${getBaseUrl()}/${page.slug}/` : null;
+                const liveUrl = page.status === 'live' ? `${getBaseUrl()}/p/${page.slug}` : null;
 
                 return `
                   <tr>
@@ -7231,7 +7231,7 @@
 
       currentEditingPage = { ...page }; // Clone to track changes
       document.getElementById('editorTitle').textContent = `✏️ Edit: ${page.name}`;
-      document.getElementById('previewUrl').textContent = page.slug ? `/${page.slug}` : 'Preview';
+      document.getElementById('previewUrl').textContent = page.slug ? `/p/${page.slug}` : 'Preview';
 
       // Load page into iframe with contenteditable enabled
       const iframe = document.getElementById('editorPreview');
