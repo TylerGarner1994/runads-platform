@@ -58,7 +58,14 @@ export default async function handler(req, res) {
   `);
 
   // ============================================================
-  // 2. BRAND_STYLE_GUIDES TABLE - Add missing columns
+  // 2a. BRAND_STYLE_GUIDES - Fix id column type (SERIAL -> TEXT)
+  // ============================================================
+  await runMigration('Change brand_style_guides.id from integer to text', sql`
+    ALTER TABLE brand_style_guides ALTER COLUMN id TYPE TEXT USING id::TEXT
+  `);
+
+  // ============================================================
+  // 2b. BRAND_STYLE_GUIDES TABLE - Add missing columns
   // ============================================================
   await runMigration('Add brand_style_guides.font_weights', sql`
     ALTER TABLE brand_style_guides ADD COLUMN IF NOT EXISTS font_weights JSONB DEFAULT '{}'
@@ -83,7 +90,14 @@ export default async function handler(req, res) {
   `);
 
   // ============================================================
-  // 3. VERIFIED_CLAIMS TABLE - Add missing columns
+  // 3a. VERIFIED_CLAIMS - Fix id column type (SERIAL -> TEXT)
+  // ============================================================
+  await runMigration('Change verified_claims.id from integer to text', sql`
+    ALTER TABLE verified_claims ALTER COLUMN id TYPE TEXT USING id::TEXT
+  `);
+
+  // ============================================================
+  // 3b. VERIFIED_CLAIMS TABLE - Add missing columns
   // ============================================================
   await runMigration('Add verified_claims.claim_type', sql`
     ALTER TABLE verified_claims ADD COLUMN IF NOT EXISTS claim_type TEXT DEFAULT 'general'
