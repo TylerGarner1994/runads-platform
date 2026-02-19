@@ -17,9 +17,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { rows } = await sql`SELECT * FROM landing_pages WHERE id = ${id}`;
       if (rows.length === 0) {
-        return res.status(404).json({ error: 'Page not found' });
+        return res.status(404).json({ success: false, error: 'Page not found' });
       }
-      return res.status(200).json(rows[0]);
+      return res.status(200).json({ success: true, page: rows[0] });
     }
 
     if (req.method === 'PUT') {
@@ -50,13 +50,13 @@ export default async function handler(req, res) {
       `;
 
       const { rows } = await sql`SELECT * FROM landing_pages WHERE id = ${id}`;
-      return res.status(200).json(rows[0]);
+      return res.status(200).json({ success: true, page: rows[0] });
     }
 
     if (req.method === 'DELETE') {
       const { rows } = await sql`SELECT * FROM landing_pages WHERE id = ${id}`;
       if (rows.length === 0) {
-        return res.status(404).json({ error: 'Page not found' });
+        return res.status(404).json({ success: false, error: 'Page not found' });
       }
 
       const page = rows[0];
