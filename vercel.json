@@ -8,6 +8,66 @@
   },
   "rewrites": [
     {
+      "source": "/api/generate/start",
+      "destination": "/api/generate/start"
+    },
+    {
+      "source": "/api/generate/:jobId/status",
+      "destination": "/api/generate/[jobId]/status"
+    },
+    {
+      "source": "/api/generate/:jobId/step/:stepName",
+      "destination": "/api/generate/[jobId]/step/[stepName]"
+    },
+    {
+      "source": "/api/clients/:id/brand",
+      "destination": "/api/clients/[id]/brand"
+    },
+    {
+      "source": "/api/clients/:id/research",
+      "destination": "/api/clients/[id]/research"
+    },
+    {
+      "source": "/api/clients/:id",
+      "destination": "/api/clients/[id]"
+    },
+    {
+      "source": "/api/pages/:id/analytics",
+      "destination": "/api/pages/[id]/analytics"
+    },
+    {
+      "source": "/api/pages/:id/deploy",
+      "destination": "/api/pages/[id]/deploy"
+    },
+    {
+      "source": "/api/pages/:id/domain",
+      "destination": "/api/pages/[id]/domain"
+    },
+    {
+      "source": "/api/pages/:id/leads",
+      "destination": "/api/pages/[id]/leads"
+    },
+    {
+      "source": "/api/pages/:id",
+      "destination": "/api/pages/[id]"
+    },
+    {
+      "source": "/api/track/:pageId",
+      "destination": "/api/track/[pageId]"
+    },
+    {
+      "source": "/api/submit/:pageId",
+      "destination": "/api/submit/[pageId]"
+    },
+    {
+      "source": "/api/convert/:pageId",
+      "destination": "/api/track/[pageId]"
+    },
+    {
+      "source": "/p/:slug",
+      "destination": "/api/p/[slug]"
+    },
+    {
       "source": "/api/pipeline/:path*",
       "destination": "/api/pipeline"
     },
@@ -16,28 +76,8 @@
       "destination": "/api/variants"
     },
     {
-      "source": "/api/pages/:path*",
-      "destination": "/api/pages"
-    },
-    {
-      "source": "/api/clients/:path*",
-      "destination": "/api/clients"
-    },
-    {
       "source": "/api/leads/:path*",
       "destination": "/api/leads"
-    },
-    {
-      "source": "/api/track/:path*",
-      "destination": "/api/track"
-    },
-    {
-      "source": "/api/convert/:path*",
-      "destination": "/api/track"
-    },
-    {
-      "source": "/api/submit/:path*",
-      "destination": "/api/track"
     },
     {
       "source": "/api/chat/:path*",
@@ -46,10 +86,6 @@
     {
       "source": "/api/generate-image/:path*",
       "destination": "/api/generate-image"
-    },
-    {
-      "source": "/p/:slug",
-      "destination": "/api/page-view"
     },
     {
       "source": "/((?!api/)(?!p/).*)",

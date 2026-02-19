@@ -185,6 +185,123 @@ export default async function handler(req, res) {
     ALTER TABLE page_templates ALTER COLUMN page_type DROP NOT NULL
   `);
 
+  // ============================================================
+  // 8. CONVERSIONS TABLE - Create if not exists
+  // ============================================================
+  await runMigration('Create conversions table', sql`
+    CREATE TABLE IF NOT EXISTS conversions (
+      id SERIAL PRIMARY KEY,
+      page_id TEXT NOT NULL REFERENCES landing_pages(id),
+      variant_id TEXT,
+      session_id TEXT,
+      conversion_type TEXT NOT NULL,
+      conversion_value DECIMAL,
+      lead_id INTEGER REFERENCES leads(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await runMigration('Create idx_conversions_page_id', sql`
+    CREATE INDEX IF NOT EXISTS idx_conversions_page_id ON conversions(page_id)
+  `);
+
+  // ============================================================
+  // 9. CUSTOM_DOMAINS TABLE - Create if not exists
+  // ============================================================
+  await runMigration('Create custom_domains table', sql`
+    CREATE TABLE IF NOT EXISTS custom_domains (
+      id SERIAL PRIMARY KEY,
+      page_id TEXT NOT NULL REFERENCES landing_pages(id) ON DELETE CASCADE,
+      domain TEXT UNIQUE NOT NULL,
+      domain_type TEXT DEFAULT 'subdomain',
+      ssl_status TEXT DEFAULT 'pending',
+      dns_configured BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await runMigration('Create idx_custom_domains_page_id', sql`
+    CREATE INDEX IF NOT EXISTS idx_custom_domains_page_id ON custom_domains(page_id)
+  `);
+
+  // ============================================================
+  // 10. LEADS TABLE - Add missing columns for UTM tracking
+  // ============================================================
+  await runMigration('Add leads.variant_id', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS variant_id TEXT
+  `);
+  await runMigration('Add leads.phone', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone TEXT
+  `);
+  await runMigration('Add leads.company', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS company TEXT
+  `);
+  await runMigration('Add leads.form_data', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS form_data JSONB
+  `);
+  await runMigration('Add leads.utm_source', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_source TEXT
+  `);
+  await runMigration('Add leads.utm_medium', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_medium TEXT
+  `);
+  await runMigration('Add leads.utm_campaign', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_campaign TEXT
+  `);
+  await runMigration('Add leads.utm_term', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_term TEXT
+  `);
+  await runMigration('Add leads.utm_content', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm_content TEXT
+  `);
+  await runMigration('Add leads.ip_address', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS ip_address TEXT
+  `);
+  await runMigration('Add leads.user_agent', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_agent TEXT
+  `);
+  await runMigration('Add leads.referrer', sql`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS referrer TEXT
+  `);
+
+  // ============================================================
+  // 11. PAGE_VIEWS TABLE - Add missing columns
+  // ============================================================
+  await runMigration('Add page_views.variant_id', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS variant_id TEXT
+  `);
+  await runMigration('Add page_views.session_id', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS session_id TEXT
+  `);
+  await runMigration('Add page_views.utm_source', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS utm_source TEXT
+  `);
+  await runMigration('Add page_views.utm_medium', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS utm_medium TEXT
+  `);
+  await runMigration('Add page_views.utm_campaign', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS utm_campaign TEXT
+  `);
+  await runMigration('Add page_views.utm_term', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS utm_term TEXT
+  `);
+  await runMigration('Add page_views.utm_content', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS utm_content TEXT
+  `);
+  await runMigration('Add page_views.device_type', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS device_type TEXT
+  `);
+  await runMigration('Add page_views.country', sql`
+    ALTER TABLE page_views ADD COLUMN IF NOT EXISTS country TEXT
+  `);
+
+  // ============================================================
+  // 12. LANDING_PAGES - Add client_id column
+  // ============================================================
+  await runMigration('Add landing_pages.client_id', sql`
+    ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS client_id TEXT
+  `);
+
   return res.status(200).json({
     success: errors.length === 0,
     message: `Migration complete. ${results.length} operations run, ${errors.length} errors.`,
