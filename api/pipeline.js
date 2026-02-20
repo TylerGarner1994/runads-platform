@@ -30,7 +30,7 @@ async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-6',
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
-      system: systemPrompt,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: 'user', content: userPrompt }]
     })
   });
