@@ -6188,17 +6188,26 @@
                   <td>${page.client_name || '-'}</td>
                   <td>${new Date(page.created_at).toLocaleDateString()}</td>
                   <td>
-                    <div class="table-actions">
+                    <div class="table-actions" style="display:flex;gap:4px;align-items:center;">
                       <button class="btn btn-icon" onclick="previewPage('${page.id}')" title="Preview">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                           <circle cx="12" cy="12" r="3"/>
                         </svg>
                       </button>
-                      <button class="btn btn-icon" onclick="editPage('${page.id}')" title="Edit">
+                      <button class="btn btn-icon" onclick="openEditor('${page.id}')" title="Visual Editor" style="color:var(--primary);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-icon" onclick="editPage('${page.id}')" title="Edit Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-icon" onclick="deletePage('${page.id}')" title="Delete" style="color:var(--error);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
                       </button>
                     </div>
@@ -6842,15 +6851,26 @@
     }
 
     async function editPage(id) {
-      const page = pages.find(p => p.id === id);
+      let page = pages.find(p => p.id === id);
       if (!page) return;
 
-      document.getElementById('modalTitle').textContent = '✏️ Edit Landing Page';
+      // Fetch full page detail to get html_content (not included in list response)
+      try {
+        const res = await fetch(`/api/pages/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          page = data.page || data;
+        }
+      } catch (e) {
+        console.warn('Could not fetch full page detail:', e);
+      }
+
+      document.getElementById('modalTitle').textContent = '⚙️ Edit Landing Page';
       document.getElementById('pageId').value = page.id;
       document.getElementById('pageName').value = page.name;
       document.getElementById('clientName').value = page.client_name || '';
       document.getElementById('pageSlug').value = page.slug;
-      document.getElementById('htmlContent').value = page.html_content;
+      document.getElementById('htmlContent').value = page.html_content || '';
       document.getElementById('metaTitle').value = page.meta_title || '';
       document.getElementById('metaDescription').value = page.meta_description || '';
       document.getElementById('trackingPixel').value = page.tracking_pixel || '';
@@ -7225,9 +7245,25 @@
     // ============================================
     let currentDeviceMode = 'desktop';
 
-    function openEditor(id) {
-      const page = pages.find(p => p.id === id);
+    async function openEditor(id) {
+      let page = pages.find(p => p.id === id);
       if (!page) return;
+
+      // Fetch full page detail to get html_content
+      try {
+        const res = await fetch(`/api/pages/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          page = { ...page, ...(data.page || data) };
+        }
+      } catch (e) {
+        console.warn('Could not fetch full page detail:', e);
+      }
+
+      if (!page.html_content) {
+        alert('Could not load page HTML. Please try again.');
+        return;
+      }
 
       currentEditingPage = { ...page }; // Clone to track changes
       document.getElementById('editorTitle').textContent = `✏️ Edit: ${page.name}`;
