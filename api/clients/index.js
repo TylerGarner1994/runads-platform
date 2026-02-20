@@ -72,10 +72,32 @@ export default async function handler(req, res) {
       `;
 
       const { rows } = await sql`SELECT * FROM clients WHERE id = ${id}`;
+      const newClient = rows[0];
+
+      // Auto-trigger research if client has a website URL
+      if (normalizedUrl) {
+        // Fire-and-forget: trigger research in the background
+        // Don't await — let it run async so client creation returns fast
+        const baseUrl = `https://${req.headers.host}`;
+        fetch(`${baseUrl}/api/clients/${id}/research`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }).then(r => {
+          if (r.ok) console.log(`[Auto-Research] Started for ${name} (${id})`);
+          else console.warn(`[Auto-Research] Failed to trigger for ${id}: ${r.status}`);
+        }).catch(err => {
+          console.warn(`[Auto-Research] Error triggering for ${id}:`, err.message);
+        });
+
+        // Mark research as pending so the UI knows it's running
+        await sql`UPDATE clients SET research_status = 'pending' WHERE id = ${id}`;
+        newClient.research_status = 'pending';
+      }
 
       return res.status(201).json({
         success: true,
-        client: rows[0]
+        client: newClient,
+        research_triggered: !!normalizedUrl
       });
     }
 
