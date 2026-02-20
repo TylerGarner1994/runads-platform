@@ -43,7 +43,8 @@ async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-6',
   const data = await resp.json();
   const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
   const text = data.content?.[0]?.text || '';
-  return { text, tokensUsed };
+  const stopReason = data.stop_reason || 'end_turn';
+  return { text, tokensUsed, stopReason };
 }
 
 // Try to parse JSON from Claude's response (handles markdown code blocks)
@@ -752,7 +753,8 @@ ${designGuidelines[pageType] || designGuidelines.advertorial}
 
 Return ONLY the complete HTML. No explanations.`;
 
-  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 16000);
+  // Use 32k tokens initially. If truncated, retry with condensed prompt at 48k.
+  let { text, tokensUsed, stopReason } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 32000);
 
   // Clean up the response
   let html = text;
@@ -765,6 +767,53 @@ Return ONLY the complete HTML. No explanations.`;
   }
   const htmlEndIdx = html.lastIndexOf('</html>');
   if (htmlEndIdx > 0) html = html.substring(0, htmlEndIdx + 7);
+
+  // If Claude hit the token limit, the HTML is truncated. Retry with a continuation prompt.
+  if (stopReason === 'max_tokens' || !html.includes('</html>')) {
+    console.warn('Design step: HTML truncated (stop_reason=' + stopReason + '). Requesting continuation...');
+
+    // Ask Claude to continue from where it left off
+    const continuationPrompt = `Continue generating the HTML from EXACTLY where you left off. Here is what you've generated so far (the last 2000 characters):
+
+${text.slice(-2000)}
+
+CONTINUE from that exact point. Complete ALL remaining sections including:
+- Any unfinished sections from the copy data
+- Testimonials section
+- FAQ/Accordion section
+- Final CTA section
+- Footer with disclaimer
+- Close all open tags
+- End with </body></html>
+
+Return ONLY the continuation HTML. No explanations. Do NOT repeat content already generated.`;
+
+    const continuation = await callClaude(null, continuationPrompt, 'claude-sonnet-4-6', 16000);
+    let contHtml = continuation.text;
+    contHtml = contHtml.replace(/^```html?\s*/i, '').replace(/\s*```$/i, '');
+
+    // Merge: strip any closing </body></html> from original, append continuation
+    html = html.replace(/<\/body>\s*<\/html>\s*$/i, '');
+    // Also strip from continuation if it starts with <!DOCTYPE or <html (Claude sometimes restarts)
+    if (contHtml.includes('<!DOCTYPE') || contHtml.trimStart().startsWith('<html')) {
+      // Claude restarted from scratch — extract just the body content
+      const bodyStart = contHtml.indexOf('<body');
+      const bodyEnd = contHtml.lastIndexOf('</body>');
+      if (bodyStart > 0 && bodyEnd > bodyStart) {
+        const bodyTagEnd = contHtml.indexOf('>', bodyStart) + 1;
+        contHtml = contHtml.substring(bodyTagEnd, bodyEnd);
+      }
+    }
+
+    html += '\n' + contHtml;
+
+    // Ensure proper closing
+    if (!html.includes('</body>')) html += '\n</body>';
+    if (!html.includes('</html>')) html += '\n</html>';
+
+    tokensUsed += continuation.tokensUsed;
+    console.log('Design step: Continuation merged. Total HTML length:', html.length);
+  }
 
   return { data: { html, template_type: pageType, design_system_version: '5.0' }, tokensUsed };
 }
@@ -969,7 +1018,9 @@ async function runAssembly(job) {
   const copy = job.copy_data || {};
   const factcheck = job.factcheck_data || {};
   const pageType = job.page_type;
-  const companyName = research.company_name || 'Landing Page';
+  const companyName = (research.company_name && research.company_name !== 'undefined')
+    ? research.company_name
+    : (research.name || job.input_data?.company_name || 'Landing Page');
 
   // Remove any remaining [STAT REMOVED - UNVERIFIED] markers
   html = html.replace(/\[STAT REMOVED - UNVERIFIED\]/g, '');
@@ -1025,10 +1076,11 @@ async function runAssembly(job) {
   const slug = `${pageType}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50)}-${Date.now().toString(36)}`;
 
   // ── Ensure HTML has proper closing tags (Claude sometimes truncates) ──
-  if (!html.includes('</body>')) {
-    // HTML was truncated — close any open tags and add closing structure
-    // First, close any potentially open <section>, <div>, <main>, <article> tags
-    const openTags = [];
+  const wasTruncated = !html.includes('</body>');
+  if (wasTruncated) {
+    console.warn('Assembly: HTML was truncated, attempting content recovery...');
+
+    // Close any potentially open tags first
     const tagPattern = /<(section|div|main|article|aside|footer|header|nav)[\s>]/gi;
     const closePattern = /<\/(section|div|main|article|aside|footer|header|nav)>/gi;
     let m;
@@ -1042,15 +1094,66 @@ async function runAssembly(job) {
       const tag = m[1].toLowerCase();
       closeCounts[tag] = (closeCounts[tag] || 0) + 1;
     }
-    // Close unclosed tags in reverse nesting order
     for (const tag of ['div', 'section', 'article', 'main', 'aside', 'footer', 'header', 'nav']) {
       const unclosed = (openCounts[tag] || 0) - (closeCounts[tag] || 0);
       for (let i = 0; i < unclosed; i++) {
         html += `</${tag}>`;
       }
     }
+
+    // ── Content Recovery: Inject missing sections from copy data ──
+    const sections = copy.sections || [];
+    const existingText = html.toLowerCase();
+    let recoveredSections = '';
+
+    for (const section of sections) {
+      // Check if this section's headline appears in the HTML
+      const headline = section.headline || section.title || '';
+      if (headline && !existingText.includes(headline.toLowerCase().substring(0, 30))) {
+        // This section is missing from the truncated HTML — inject it
+        const content = section.content || section.body || '';
+        const testimonials = section.testimonials || [];
+        let sectionHtml = `\n<section style="max-width:700px;margin:0 auto;padding:40px 20px;">\n`;
+        if (headline) sectionHtml += `  <h2 style="font-size:1.8rem;margin-bottom:16px;">${headline}</h2>\n`;
+        if (content) {
+          // Split content into paragraphs
+          const paragraphs = content.split(/\n\n|\n/).filter(p => p.trim());
+          for (const p of paragraphs) {
+            sectionHtml += `  <p style="font-size:1.1rem;line-height:1.7;margin-bottom:16px;color:#444;">${p.trim()}</p>\n`;
+          }
+        }
+        for (const t of testimonials) {
+          const quote = typeof t === 'string' ? t : (t.quote || t.text || '');
+          const author = typeof t === 'object' ? (t.author || t.name || '') : '';
+          if (quote) {
+            sectionHtml += `  <blockquote style="border-left:3px solid #ccc;padding-left:16px;margin:24px 0;font-style:italic;color:#555;">${quote}`;
+            if (author) sectionHtml += `<footer style="margin-top:8px;font-style:normal;font-weight:600;">- ${author}</footer>`;
+            sectionHtml += `</blockquote>\n`;
+          }
+        }
+        sectionHtml += `</section>\n`;
+        recoveredSections += sectionHtml;
+      }
+    }
+
+    // Inject footer CTA if missing
+    const footerCta = copy.footer_cta || copy.cta || {};
+    const ctaHeadline = footerCta.headline || footerCta.title || '';
+    const ctaText = footerCta.cta_text || footerCta.button_text || 'Get Started';
+    const ctaUrl = footerCta.url || research.url || '#';
+    if (ctaHeadline && !existingText.includes(ctaHeadline.toLowerCase().substring(0, 20))) {
+      recoveredSections += `\n<section style="max-width:700px;margin:0 auto;padding:60px 20px;text-align:center;">
+  <h2 style="font-size:2rem;margin-bottom:16px;">${ctaHeadline}</h2>
+  <a href="${ctaUrl}" style="display:inline-block;padding:16px 40px;background:#e94560;color:white;text-decoration:none;border-radius:8px;font-size:1.1rem;font-weight:600;">${ctaText}</a>
+</section>\n`;
+    }
+
+    if (recoveredSections) {
+      html += recoveredSections;
+      console.log('Assembly: Recovered ' + (recoveredSections.match(/<section/g) || []).length + ' missing sections from copy data');
+    }
+
     html += '\n</body>\n</html>';
-    console.warn('Assembly: HTML was truncated, added closing tags');
   }
   if (!html.includes('</html>')) {
     html += '\n</html>';
@@ -1070,7 +1173,10 @@ async function runAssembly(job) {
 
   // Create page record
   const pageId = 'pg_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-  const pageName = copy.meta?.title || copy.headlines?.hero_headline || `${companyName} ${pageType}`;
+  // Extract title from HTML <title> tag as fallback
+  const htmlTitleMatch = html.match(/<title>([^<]+)<\/title>/i);
+  const htmlTitle = htmlTitleMatch ? htmlTitleMatch[1].trim() : null;
+  const pageName = copy.meta?.title || copy.headlines?.hero_headline || copy.hero?.headline || htmlTitle || `${companyName} - ${pageType}`;
 
   const page = {
     id: pageId,
