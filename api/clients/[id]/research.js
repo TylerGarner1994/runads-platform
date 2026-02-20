@@ -79,6 +79,251 @@ function parseJSON(text) {
   }
 }
 
+// ─── Extract brand colors from website CSS (FREE - no API cost) ───
+async function extractColorsFromCSS(url) {
+  console.log(`[Research] Extracting colors from ${url}...`);
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RunAds/1.0)' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+
+    // Collect all colors from: inline styles, <style> blocks, and CSS custom properties
+    const colors = {};
+
+    // 1. Extract from <style> blocks
+    const styleBlocks = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    const allCSS = styleBlocks.map(b => b.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+
+    // 2. Extract from inline style attributes
+    const inlineStyles = html.match(/style="([^"]+)"/gi) || [];
+    const inlineCSS = inlineStyles.map(s => s.replace(/style="/i, '').replace(/"$/, '')).join(';');
+
+    const fullCSS = allCSS + '\n' + inlineCSS;
+
+    // 3. Find all hex colors (#rgb, #rrggbb, #rrggbbaa)
+    const hexMatches = fullCSS.match(/#(?:[0-9a-fA-F]{3,4}){1,2}\b/g) || [];
+    for (const hex of hexMatches) {
+      const normalized = normalizeHex(hex);
+      if (normalized && !isNeutralColor(normalized)) {
+        colors[normalized] = (colors[normalized] || 0) + 1;
+      }
+    }
+
+    // 4. Find all rgb/rgba colors
+    const rgbMatches = fullCSS.match(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d.]+\s*)?\)/g) || [];
+    for (const rgb of rgbMatches) {
+      const hex = rgbToHex(rgb);
+      if (hex && !isNeutralColor(hex)) {
+        colors[hex] = (colors[hex] || 0) + 1;
+      }
+    }
+
+    // 5. Extract CSS custom properties (--primary-color, --brand-color, etc.)
+    const cssVarMatches = fullCSS.match(/--[\w-]*(?:color|brand|primary|secondary|accent)[\w-]*:\s*([^;}\n]+)/gi) || [];
+    for (const match of cssVarMatches) {
+      const value = match.split(':')[1]?.trim();
+      if (value) {
+        const hexFromVar = value.startsWith('#') ? normalizeHex(value) : rgbToHex(value);
+        if (hexFromVar && !isNeutralColor(hexFromVar)) {
+          colors[hexFromVar] = (colors[hexFromVar] || 0) + 10; // Boost CSS vars - these are intentional brand colors
+        }
+      }
+    }
+
+    // 6. Check for meta theme-color
+    const themeColor = html.match(/<meta\s+name="theme-color"\s+content="([^"]+)"/i);
+    if (themeColor) {
+      const hex = normalizeHex(themeColor[1]) || rgbToHex(themeColor[1]);
+      if (hex) colors[hex] = (colors[hex] || 0) + 20; // Highest priority
+    }
+
+    // Sort by frequency (most used = likely primary brand color)
+    const sorted = Object.entries(colors)
+      .sort((a, b) => b[1] - a[1])
+      .map(([hex]) => hex);
+
+    if (sorted.length === 0) return null;
+
+    // Also try to detect background and text colors
+    const bgMatches = fullCSS.match(/background(?:-color)?:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/gi) || [];
+    const textMatches = fullCSS.match(/(?:^|[^-])color:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/gi) || [];
+
+    let backgroundColor = null;
+    let textColor = null;
+
+    // Find most common light background
+    const bgColors = {};
+    for (const m of bgMatches) {
+      const val = m.split(':')[1]?.trim();
+      const hex = val?.startsWith('#') ? normalizeHex(val) : rgbToHex(val);
+      if (hex && isLightColor(hex)) bgColors[hex] = (bgColors[hex] || 0) + 1;
+    }
+    const sortedBg = Object.entries(bgColors).sort((a, b) => b[1] - a[1]);
+    if (sortedBg.length > 0) backgroundColor = sortedBg[0][0];
+
+    // Find most common dark text color
+    const txtColors = {};
+    for (const m of textMatches) {
+      const val = m.split(':')[1]?.trim();
+      const hex = val?.startsWith('#') ? normalizeHex(val) : rgbToHex(val);
+      if (hex && isDarkColor(hex)) txtColors[hex] = (txtColors[hex] || 0) + 1;
+    }
+    const sortedTxt = Object.entries(txtColors).sort((a, b) => b[1] - a[1]);
+    if (sortedTxt.length > 0) textColor = sortedTxt[0][0];
+
+    console.log(`[Research] Found ${sorted.length} brand colors: ${sorted.slice(0, 5).join(', ')}`);
+
+    return {
+      primary: sorted[0] || null,
+      secondary: sorted[1] || null,
+      accent: sorted[2] || null,
+      background: backgroundColor || '#ffffff',
+      text: textColor || '#1f2937',
+      all_colors: sorted.slice(0, 10) // Top 10 for reference
+    };
+  } catch (err) {
+    console.warn('[Research] Color extraction failed:', err.message);
+    return null;
+  }
+}
+
+// Helper: normalize 3-digit hex to 6-digit
+function normalizeHex(hex) {
+  if (!hex || !hex.startsWith('#')) return null;
+  hex = hex.toLowerCase();
+  // Strip alpha channel if present (#rrggbbaa → #rrggbb)
+  if (hex.length === 9) hex = hex.substring(0, 7);
+  if (hex.length === 5) hex = hex.substring(0, 4);
+  // Expand 3-digit to 6-digit (#rgb → #rrggbb)
+  if (hex.length === 4) {
+    hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+  }
+  return hex.length === 7 ? hex : null;
+}
+
+// Helper: convert rgb(r,g,b) to hex
+function rgbToHex(rgb) {
+  if (!rgb) return null;
+  const match = rgb.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (!match) return null;
+  const r = parseInt(match[1]), g = parseInt(match[2]), b = parseInt(match[3]);
+  if (r > 255 || g > 255 || b > 255) return null;
+  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
+// Helper: skip boring neutrals (black, white, grays)
+function isNeutralColor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Check if very close to gray (r ≈ g ≈ b)
+  const maxDiff = Math.max(Math.abs(r - g), Math.abs(r - b), Math.abs(g - b));
+  // If all channels within 15 of each other AND very dark or very light → neutral
+  if (maxDiff < 15 && (r < 40 || r > 220)) return true;
+  // Pure black, white, common grays
+  if (hex === '#000000' || hex === '#ffffff' || hex === '#f5f5f5' || hex === '#f0f0f0' || hex === '#e0e0e0' || hex === '#cccccc' || hex === '#333333' || hex === '#666666' || hex === '#999999') return true;
+  return false;
+}
+
+// Helper: is this a light color? (for background detection)
+function isLightColor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r + g + b) / 3 > 200;
+}
+
+// Helper: is this a dark color? (for text detection)
+function isDarkColor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r + g + b) / 3 < 100;
+}
+
+// ─── Phase 2: Gemini Vision color extraction ───
+// Uses Gemini to visually analyze the website and extract brand colors + fonts
+async function extractColorsWithGemini(url) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  // Use Gemini to analyze the website URL directly
+  const prompt = `Visit/analyze this website: ${url}
+
+Extract the exact brand colors and fonts used on this website. Look at:
+- Logo colors
+- Primary button/CTA colors
+- Header/navigation background
+- Link colors
+- Heading and body fonts
+
+Return ONLY a JSON object:
+{
+  "primary": "#hex (main brand color - used in logo, CTAs, key elements)",
+  "secondary": "#hex (secondary brand color - used in accents, hover states)",
+  "accent": "#hex (accent/highlight color - used sparingly for emphasis)",
+  "background": "#hex (main page background color)",
+  "text": "#hex (main body text color)",
+  "heading_font": "font family name for headings",
+  "body_font": "font family name for body text",
+  "color_palette": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"]
+}
+
+Be precise with hex codes. If unsure about a color, use null.`;
+
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1024
+          }
+        })
+      }
+    );
+
+    if (!resp.ok) {
+      console.warn(`[Research] Gemini API returned ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) return null;
+
+    const parsed = parseJSON(text);
+    if (!parsed) return null;
+
+    // Validate hex codes
+    const validHex = (h) => h && /^#[0-9a-fA-F]{6}$/.test(h) ? h.toLowerCase() : null;
+
+    console.log(`[Research] Gemini extracted: primary=${parsed.primary}, secondary=${parsed.secondary}, fonts=${parsed.heading_font}/${parsed.body_font}`);
+
+    return {
+      primary: validHex(parsed.primary),
+      secondary: validHex(parsed.secondary),
+      accent: validHex(parsed.accent),
+      background: validHex(parsed.background),
+      text: validHex(parsed.text),
+      heading_font: parsed.heading_font || null,
+      body_font: parsed.body_font || null,
+      color_palette: (parsed.color_palette || []).map(validHex).filter(Boolean)
+    };
+  } catch (err) {
+    console.warn('[Research] Gemini color extraction error:', err.message);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -381,20 +626,45 @@ Return a JSON object:
       }
     }
 
+    // ═══════════════════════════════════════════════════════
+    // PHASE 1: CSS Color Extraction (FREE - no API cost)
+    // ═══════════════════════════════════════════════════════
+    console.log('[Research] Phase 1: CSS color extraction...');
+    const cssColors = await extractColorsFromCSS(url);
+
+    // ═══════════════════════════════════════════════════════
+    // PHASE 2: Gemini Vision (confirms/enhances CSS colors)
+    // ═══════════════════════════════════════════════════════
+    let geminiColors = null;
+    if (process.env.GEMINI_API_KEY) {
+      console.log('[Research] Phase 2: Gemini vision color analysis...');
+      try {
+        geminiColors = await extractColorsWithGemini(url);
+      } catch (gemErr) {
+        console.warn('[Research] Gemini color extraction failed:', gemErr.message);
+      }
+    }
+
+    // Merge colors: Gemini (most accurate) > CSS (good) > Perplexity (fallback)
+    const finalColors = {
+      primary: geminiColors?.primary || cssColors?.primary || brandData.brand_colors?.[0] || null,
+      secondary: geminiColors?.secondary || cssColors?.secondary || brandData.brand_colors?.[1] || null,
+      accent: geminiColors?.accent || cssColors?.accent || brandData.brand_colors?.[2] || null,
+      background: cssColors?.background || geminiColors?.background || '#ffffff',
+      text: cssColors?.text || geminiColors?.text || '#1f2937',
+      headingFont: geminiColors?.heading_font || brandData.brand_fonts?.[0] || null,
+      bodyFont: geminiColors?.body_font || brandData.brand_fonts?.[1] || brandData.brand_fonts?.[0] || null
+    };
+
+    console.log(`[Research] Final brand colors: primary=${finalColors.primary}, secondary=${finalColors.secondary}, accent=${finalColors.accent}`);
+    console.log(`[Research] Sources: CSS=${!!cssColors}, Gemini=${!!geminiColors}, Perplexity=${brandData.brand_colors?.length || 0}`);
+
     // ─── Auto-populate brand guide ───
     let brandGuideCreated = false;
     try {
       const existingBrand = await sql`SELECT id FROM brand_style_guides WHERE client_id = ${id}`;
 
-      // Extract brand data from research
-      const primaryColor = brandData.brand_colors?.[0] || null;
-      const secondaryColor = brandData.brand_colors?.[1] || null;
-      const accentColor = brandData.brand_colors?.[2] || null;
-      const headingFont = brandData.brand_fonts?.[0] || null;
-      const bodyFont = brandData.brand_fonts?.[1] || brandData.brand_fonts?.[0] || null;
-
       if (existingBrand.rows.length === 0) {
-        // Create new brand guide from research
         const brandGuideId = uuidv4();
         await sql`
           INSERT INTO brand_style_guides (
@@ -404,9 +674,9 @@ Return a JSON object:
           )
           VALUES (
             ${brandGuideId}, ${id},
-            ${primaryColor}, ${secondaryColor}, ${accentColor},
-            '#ffffff', '#1f2937',
-            ${headingFont}, ${bodyFont},
+            ${finalColors.primary}, ${finalColors.secondary}, ${finalColors.accent},
+            ${finalColors.background}, ${finalColors.text},
+            ${finalColors.headingFont}, ${finalColors.bodyFont},
             ${brandData.brand_voice || null},
             ${JSON.stringify(brandData.value_propositions?.slice(0, 5) || [])}::jsonb,
             ${now}, ${now}
@@ -414,15 +684,17 @@ Return a JSON object:
         `;
         brandGuideCreated = true;
       } else {
-        // Update existing brand guide with any new data (only fill NULLs)
+        // Update: fill any NULL fields with newly extracted data
         await sql`
           UPDATE brand_style_guides
           SET
-            primary_color = COALESCE(primary_color, ${primaryColor}),
-            secondary_color = COALESCE(secondary_color, ${secondaryColor}),
-            accent_color = COALESCE(accent_color, ${accentColor}),
-            heading_font = COALESCE(heading_font, ${headingFont}),
-            body_font = COALESCE(body_font, ${bodyFont}),
+            primary_color = COALESCE(primary_color, ${finalColors.primary}),
+            secondary_color = COALESCE(secondary_color, ${finalColors.secondary}),
+            accent_color = COALESCE(accent_color, ${finalColors.accent}),
+            background_color = COALESCE(NULLIF(background_color, '#ffffff'), ${finalColors.background}),
+            text_color = COALESCE(NULLIF(text_color, '#1f2937'), ${finalColors.text}),
+            heading_font = COALESCE(heading_font, ${finalColors.headingFont}),
+            body_font = COALESCE(body_font, ${finalColors.bodyFont}),
             brand_voice = COALESCE(brand_voice, ${brandData.brand_voice || null}),
             updated_at = ${now}
           WHERE client_id = ${id}
@@ -440,6 +712,14 @@ Return a JSON object:
       business_research: businessResearch,
       claims_created: claimsCreated,
       brand_guide_created: brandGuideCreated,
+      brand_colors: {
+        extracted: finalColors,
+        sources: {
+          css: !!cssColors,
+          gemini: !!geminiColors,
+          perplexity: (brandData.brand_colors?.length || 0) > 0
+        }
+      },
       citations: businessResearch.citations.length,
       tokens_used: businessResearch.total_tokens
     });
