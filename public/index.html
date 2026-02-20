@@ -7717,19 +7717,30 @@
 
         if (!res.ok) throw new Error(result.error || 'Unknown error');
 
-        // Update iframe with new HTML
-        iframe.srcdoc = result.html;
+        if (result.success === false) {
+          // Changes couldn't be applied
+          document.getElementById('chatLoading')?.remove();
+          chatMessages.innerHTML += `
+            <div class="chat-message assistant" style="border-color: #f0ad4e; background: rgba(240,173,78,0.05);">
+              ${escapeHtml(result.response || result.message || 'No changes applied')}
+            </div>
+          `;
+        } else {
+          // Update iframe with new HTML
+          iframe.srcdoc = result.html;
 
-        // Update the stored page HTML
-        currentEditingPage.html_content = result.html;
+          // Update the stored page HTML
+          currentEditingPage.html_content = result.html;
 
-        // Add success message
-        const responseMsg = result.response || result.message || 'Changes applied successfully!';
-        chatMessages.innerHTML += `
-          <div class="chat-message assistant">
-            ${escapeHtml(responseMsg)}
-          </div>
-        `;
+          // Build response with mode indicator
+          const mode = result.mode === 'quick' ? '⚡' : '🤖';
+          const responseMsg = result.response || result.message || 'Changes applied!';
+          chatMessages.innerHTML += `
+            <div class="chat-message assistant">
+              ${mode} ${escapeHtml(responseMsg)}
+            </div>
+          `;
+        }
 
       } catch (error) {
         // Remove loading message
