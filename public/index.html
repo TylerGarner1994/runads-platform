@@ -7705,11 +7705,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: message,
-            currentHtml: currentHtml,
-            pageContext: {
-              name: currentEditingPage.name,
-              client_name: currentEditingPage.client_name
-            }
+            html: currentHtml,
+            pageId: currentEditingPage.id
           })
         });
 
@@ -7718,7 +7715,7 @@
         // Remove loading message
         document.getElementById('chatLoading')?.remove();
 
-        if (!res.ok) throw new Error(result.error);
+        if (!res.ok) throw new Error(result.error || 'Unknown error');
 
         // Update iframe with new HTML
         iframe.srcdoc = result.html;
@@ -7727,9 +7724,10 @@
         currentEditingPage.html_content = result.html;
 
         // Add success message
+        const responseMsg = result.response || result.message || 'Changes applied successfully!';
         chatMessages.innerHTML += `
           <div class="chat-message assistant">
-            ${escapeHtml(result.message)}
+            ${escapeHtml(responseMsg)}
           </div>
         `;
 

@@ -26,9 +26,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Claude API key not configured' });
   }
 
-  // Determine mode: live widget (slug-based) vs dashboard (html-based)
+  // Determine mode: live widget (slug-based) vs dashboard (html/pageId-based)
   let currentHtml = html;
   let page = null;
+  let shouldSave = false;
 
   if (slug) {
     // Live widget mode — validate admin key
@@ -43,8 +44,20 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Page not found' });
     }
     currentHtml = page.html_content;
+    shouldSave = true;
+  } else if (pageId && !currentHtml) {
+    // Dashboard mode with pageId but no HTML — fetch from storage
+    page = await getPage(pageId);
+    if (!page || !page.html_content) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+    currentHtml = page.html_content;
+    shouldSave = true;
+  } else if (pageId && currentHtml) {
+    // Dashboard mode with pageId and HTML — will save after edit
+    shouldSave = true;
   } else if (!currentHtml) {
-    return res.status(400).json({ error: 'Either slug or html is required' });
+    return res.status(400).json({ error: 'Either slug, pageId, or html is required' });
   }
 
   // Truncate HTML if too large (keep first and last sections for context)
@@ -65,7 +78,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 16000,
+        max_tokens: 32000,
         system: `You are an expert web developer and conversion rate optimizer. You modify HTML landing pages based on user requests.
 
 RULES:
@@ -108,10 +121,13 @@ When making copy changes, apply these principles:
     }
     cleanHtml = cleanHtml.trim();
 
-    // Auto-save: if we loaded from slug, write back to Postgres
-    if (page) {
+    // Auto-save: write back to Postgres if we have a page reference or pageId
+    const saveId = page ? page.id : (shouldSave && pageId ? pageId : null);
+    let saved = false;
+    if (saveId) {
       try {
-        await updatePage(page.id, { html_content: cleanHtml });
+        await updatePage(saveId, { html_content: cleanHtml });
+        saved = true;
       } catch (saveErr) {
         console.error('Failed to save page update:', saveErr);
         return res.status(500).json({ error: 'Claude edit succeeded but failed to save: ' + saveErr.message });
@@ -124,10 +140,11 @@ When making copy changes, apply these principles:
       success: true,
       html: cleanHtml,
       tokens,
-      saved: !!page,
-      response: page
-        ? `Done! Your change has been saved. The page will reload to show it.`
-        : 'Page updated successfully'
+      saved,
+      message: 'Changes applied successfully!',
+      response: saved
+        ? `Done! Your changes have been applied and saved.`
+        : 'Changes applied (not saved yet — click Save to persist).'
     });
 
   } catch (err) {
