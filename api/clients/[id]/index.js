@@ -80,12 +80,18 @@ export default async function handler(req, res) {
       // Update client
       const { name, website_url, industry, business_research, verified_facts, testimonials, research_status } = req.body;
 
+      // Normalize URL - ensure protocol prefix
+      let normalizedUrl = website_url ? website_url.trim() : null;
+      if (normalizedUrl && !normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+
       const now = new Date().toISOString();
 
       await sql`
         UPDATE clients
         SET name = COALESCE(${name || null}, name),
-            website_url = COALESCE(${website_url || null}, website_url),
+            website_url = COALESCE(${normalizedUrl}, website_url),
             industry = COALESCE(${industry || null}, industry),
             business_research = COALESCE(${business_research ? JSON.stringify(business_research) : null}, business_research),
             research_status = COALESCE(${research_status || null}, research_status),

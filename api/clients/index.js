@@ -57,12 +57,18 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Name is required' });
       }
 
+      // Normalize URL - ensure protocol prefix
+      let normalizedUrl = website_url ? website_url.trim() : null;
+      if (normalizedUrl && !normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+
       const id = uuidv4();
       const now = new Date().toISOString();
 
       await sql`
         INSERT INTO clients (id, name, website_url, industry, created_at, updated_at)
-        VALUES (${id}, ${name}, ${website_url || null}, ${industry || null}, ${now}, ${now})
+        VALUES (${id}, ${name}, ${normalizedUrl}, ${industry || null}, ${now}, ${now})
       `;
 
       const { rows } = await sql`SELECT * FROM clients WHERE id = ${id}`;

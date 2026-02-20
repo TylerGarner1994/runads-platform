@@ -39,8 +39,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: 'GEMINI_API_KEY not configured' });
     }
 
-    // Fetch and scrape website
-    const url = client.website_url;
+    // Fetch and scrape website - normalize URL
+    let url = client.website_url.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
     const scrapedContent = {};
 
     // Fetch main page
