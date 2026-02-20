@@ -110,8 +110,16 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
 
-    // Set meta tags if not already in HTML
+    // Clean HTML — strip any editor artifacts that may have been saved accidentally
     let html = page.html_content;
+    // Remove contenteditable editing scripts
+    html = html.replace(/<script>[\s\S]*?document\.addEventListener\('DOMContentLoaded'[\s\S]*?contentEditable[\s\S]*?<\/script>/gi, '');
+    // Remove contenteditable hover/focus styles
+    html = html.replace(/<style>\s*\[contenteditable\][\s\S]*?<\/style>/gi, '');
+    // Remove contenteditable attributes
+    html = html.replace(/\s*contenteditable="true"/gi, '');
+    // Remove inline outline styles added by editor focus/blur handlers
+    html = html.replace(/\s*style="outline:\s*(?:none|2px solid[^"]*);?\s*(?:outline-offset:\s*2px;?)?\s*"/gi, '');
 
     // Inject meta tags if page has them and they're not in HTML
     if (page.meta_title && !html.includes('<title>')) {

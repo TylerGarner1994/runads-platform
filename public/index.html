@@ -7696,16 +7696,17 @@
       input.disabled = true;
 
       try {
-        // Get current HTML from iframe
+        // Get CLEAN HTML from iframe (strip editing scripts before sending to API)
         const iframe = document.getElementById('editorPreview');
-        const currentHtml = iframe.srcdoc;
+        updateCurrentPageHtml(); // Sync iframe edits to currentEditingPage.html_content (strips contenteditable)
+        const cleanHtml = currentEditingPage.html_content;
 
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: message,
-            html: currentHtml,
+            html: cleanHtml,
             pageId: currentEditingPage.id
           })
         });
@@ -7726,11 +7727,11 @@
             </div>
           `;
         } else {
-          // Update iframe with new HTML
-          iframe.srcdoc = result.html;
-
-          // Update the stored page HTML
+          // Update the stored CLEAN page HTML
           currentEditingPage.html_content = result.html;
+
+          // Re-add contenteditable for the editor iframe
+          iframe.srcdoc = enableContentEditable(result.html);
 
           // Build response with mode indicator
           const mode = result.mode === 'quick' ? '⚡' : '🤖';

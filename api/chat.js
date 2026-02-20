@@ -9,6 +9,16 @@ export const config = { maxDuration: 300 };
 
 import { getPageBySlug, getPage, updatePage } from '../lib/storage.js';
 
+// ─── Strip editor artifacts from HTML ───
+function cleanEditorArtifacts(html) {
+  if (!html) return html;
+  return html
+    .replace(/<script>[\s\S]*?contentEditable[\s\S]*?<\/script>/gi, '')
+    .replace(/<style>\s*\[contenteditable\][\s\S]*?<\/style>/gi, '')
+    .replace(/\s*contenteditable="true"/gi, '')
+    .replace(/\s*style="outline:\s*(?:none|2px solid[^"]*);?\s*(?:outline-offset:\s*2px;?)?\s*"/gi, '');
+}
+
 // ─── Quick edits that don't need AI at all ───
 function tryQuickEdit(html, message) {
   const msg = message.toLowerCase().trim();
@@ -103,6 +113,9 @@ export default async function handler(req, res) {
   } else if (!currentHtml) {
     return res.status(400).json({ error: 'Either slug, pageId, or html is required' });
   }
+
+  // ─── Strip any editor artifacts from HTML before processing ───
+  currentHtml = cleanEditorArtifacts(currentHtml);
 
   // ─── Try quick edit first (no AI, instant, free) ───
   const quickResult = tryQuickEdit(currentHtml, message);
