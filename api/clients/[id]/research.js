@@ -245,35 +245,78 @@ function isDarkColor(hex) {
   return (r + g + b) / 3 < 100;
 }
 
-// ─── Phase 2: Gemini Vision color extraction ───
-// Uses Gemini to visually analyze the website and extract brand colors + fonts
+// ─── Phase 2: Gemini color + font extraction from HTML ───
+// Feeds the actual page HTML to Gemini for intelligent color/font analysis
 async function extractColorsWithGemini(url) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
-  // Use Gemini to analyze the website URL directly
-  const prompt = `Visit/analyze this website: ${url}
+  // Step 1: Fetch the actual HTML
+  let html;
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RunAds/1.0)' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!resp.ok) return null;
+    html = await resp.text();
+  } catch (err) {
+    console.warn('[Research] Failed to fetch page for Gemini:', err.message);
+    return null;
+  }
 
-Extract the exact brand colors and fonts used on this website. Look at:
-- Logo colors
-- Primary button/CTA colors
-- Header/navigation background
-- Link colors
-- Heading and body fonts
+  // Step 2: Extract just the CSS and relevant HTML (limit size for Gemini)
+  const styleBlocks = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || [];
+  const linkTags = html.match(/<link[^>]*rel="stylesheet"[^>]*>/gi) || [];
+  const metaTags = html.match(/<meta[^>]*>/gi) || [];
+  const bodySnippet = html.match(/<body[^>]*>[\s\S]{0,3000}/i)?.[0] || '';
+  const navSection = html.match(/<nav[\s\S]*?<\/nav>/i)?.[0] || '';
+  const headerSection = html.match(/<header[\s\S]*?<\/header>/i)?.[0] || '';
+  const footerSnippet = (html.match(/<footer[\s\S]*?<\/footer>/i)?.[0] || '').substring(0, 1500);
 
-Return ONLY a JSON object:
+  // Combine relevant parts (keep under ~15k chars for Gemini)
+  const cssContent = styleBlocks.join('\n').substring(0, 8000);
+  const htmlSnippet = [
+    metaTags.join('\n'),
+    linkTags.join('\n'),
+    headerSection.substring(0, 2000),
+    navSection.substring(0, 1500),
+    bodySnippet,
+    footerSnippet
+  ].join('\n').substring(0, 12000);
+
+  const prompt = `Analyze this website's HTML and CSS to extract the exact brand colors and fonts.
+
+Website: ${url}
+
+CSS STYLES:
+${cssContent}
+
+HTML STRUCTURE:
+${htmlSnippet}
+
+Based on the CSS variables, class styles, inline styles, and HTML structure, identify:
+1. The PRIMARY brand color (used in logo, CTAs, buttons, main brand elements)
+2. The SECONDARY brand color (used in accents, secondary buttons, hover states)
+3. The ACCENT color (used sparingly for highlights, badges, special elements)
+4. Background and text colors
+5. Font families for headings and body text (look at font-family declarations, Google Fonts links, etc.)
+
+Return ONLY a valid JSON object:
 {
-  "primary": "#hex (main brand color - used in logo, CTAs, key elements)",
-  "secondary": "#hex (secondary brand color - used in accents, hover states)",
-  "accent": "#hex (accent/highlight color - used sparingly for emphasis)",
-  "background": "#hex (main page background color)",
-  "text": "#hex (main body text color)",
-  "heading_font": "font family name for headings",
-  "body_font": "font family name for body text",
-  "color_palette": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"]
+  "primary": "#hex",
+  "secondary": "#hex",
+  "accent": "#hex",
+  "background": "#hex",
+  "text": "#hex",
+  "heading_font": "font family name",
+  "body_font": "font family name",
+  "color_palette": ["#hex1", "#hex2", "#hex3", "#hex4", "#hex5"],
+  "confidence": "high/medium/low"
 }
 
-Be precise with hex codes. If unsure about a color, use null.`;
+Be precise with hex codes. Use null if genuinely unsure.`;
 
   try {
     const resp = await fetch(
@@ -304,9 +347,9 @@ Be precise with hex codes. If unsure about a color, use null.`;
     if (!parsed) return null;
 
     // Validate hex codes
-    const validHex = (h) => h && /^#[0-9a-fA-F]{6}$/.test(h) ? h.toLowerCase() : null;
+    const validHex = (h) => h && /^#[0-9a-fA-F]{6}$/i.test(h) ? h.toLowerCase() : null;
 
-    console.log(`[Research] Gemini extracted: primary=${parsed.primary}, secondary=${parsed.secondary}, fonts=${parsed.heading_font}/${parsed.body_font}`);
+    console.log(`[Research] Gemini extracted: primary=${parsed.primary}, secondary=${parsed.secondary}, fonts=${parsed.heading_font}/${parsed.body_font}, confidence=${parsed.confidence}`);
 
     return {
       primary: validHex(parsed.primary),
@@ -316,7 +359,8 @@ Be precise with hex codes. If unsure about a color, use null.`;
       text: validHex(parsed.text),
       heading_font: parsed.heading_font || null,
       body_font: parsed.body_font || null,
-      color_palette: (parsed.color_palette || []).map(validHex).filter(Boolean)
+      color_palette: (parsed.color_palette || []).map(validHex).filter(Boolean),
+      confidence: parsed.confidence || 'medium'
     };
   } catch (err) {
     console.warn('[Research] Gemini color extraction error:', err.message);
