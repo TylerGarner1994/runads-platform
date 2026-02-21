@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const { name, slug, client_name, html_content, meta_title, meta_description, tracking_pixel, status } = req.body;
+      const { name, slug, client_name, client_id, html_content, meta_title, meta_description, tracking_pixel, status } = req.body;
 
       const { rows: existing } = await sql`SELECT * FROM landing_pages WHERE id = ${id}`;
       if (existing.length === 0) {
@@ -40,6 +40,7 @@ export default async function handler(req, res) {
           name = ${name || existing[0].name},
           slug = ${slug || existing[0].slug},
           client_name = ${client_name ?? existing[0].client_name},
+          client_id = ${client_id ?? existing[0].client_id},
           html_content = ${processedHtml},
           meta_title = ${meta_title ?? existing[0].meta_title},
           meta_description = ${meta_description ?? existing[0].meta_description},
