@@ -189,47 +189,75 @@ export async function runAssemblyStep({ job, stepOutputs, additionalInput, jobId
     counter++;
   }
 
-  // Create the landing page record
-  const pageId = uuidv4();
   const now = new Date().toISOString();
-
-  // Replace page ID placeholder
-  html = html.replace(/\{\{PAGE_ID\}\}/g, pageId);
-
   const metaTitle = copyResult.copy?.meta?.title || `${researchData.company_name} - ${job.page_type}`;
   const metaDescription = copyResult.copy?.meta?.description || '';
 
-  await sql`
-    INSERT INTO landing_pages (
-      id, name, slug, client_name, client_id, template_id, job_id,
-      generation_metadata, html_content, status,
-      meta_title, meta_description, created_at, updated_at
-    )
-    VALUES (
-      ${pageId},
-      ${metaTitle},
-      ${slug},
-      ${researchData.company_name || null},
-      ${job.client_id || null},
-      ${job.template_id || null},
-      ${jobId},
-      ${JSON.stringify({
-        page_type: job.page_type,
-        tokens_used: Object.values(stepOutputs).reduce((sum, s) => sum + (s?.tokens_used || 0), 0),
-        steps_completed: Object.keys(stepOutputs).filter(k => stepOutputs[k]).length,
-        fact_check_summary: {
-          verified: factCheckResult.verified_count || 0,
-          flagged: factCheckResult.flagged_count || 0
-        }
-      })}::jsonb,
-      ${html},
-      'draft',
-      ${metaTitle},
-      ${metaDescription},
-      ${now},
-      ${now}
-    )
-  `;
+  // Check if this job already has an existing page (re-run scenario)
+  const existingPageId = job.page_id;
+  let pageId;
+
+  if (existingPageId) {
+    // Update the existing page instead of creating a new one
+    pageId = existingPageId;
+    html = html.replace(/\{\{PAGE_ID\}\}/g, pageId);
+
+    await sql`
+      UPDATE landing_pages SET
+        html_content = ${html},
+        generation_metadata = ${JSON.stringify({
+          page_type: job.page_type,
+          tokens_used: Object.values(stepOutputs).reduce((sum, s) => sum + (s?.tokens_used || 0), 0),
+          steps_completed: Object.keys(stepOutputs).filter(k => stepOutputs[k]).length,
+          regenerated_at: now,
+          fact_check_summary: {
+            verified: factCheckResult.verified_count || 0,
+            flagged: factCheckResult.flagged_count || 0
+          }
+        })}::jsonb,
+        meta_title = ${metaTitle},
+        meta_description = ${metaDescription},
+        updated_at = ${now}
+      WHERE id = ${pageId}
+    `;
+    console.log(`[Assembly] Updated existing page ${pageId} (re-run)`);
+  } else {
+    // Create new landing page record
+    pageId = uuidv4();
+    html = html.replace(/\{\{PAGE_ID\}\}/g, pageId);
+
+    await sql`
+      INSERT INTO landing_pages (
+        id, name, slug, client_name, client_id, template_id, job_id,
+        generation_metadata, html_content, status,
+        meta_title, meta_description, created_at, updated_at
+      )
+      VALUES (
+        ${pageId},
+        ${metaTitle},
+        ${slug},
+        ${researchData.company_name || null},
+        ${job.client_id || null},
+        ${job.template_id || null},
+        ${jobId},
+        ${JSON.stringify({
+          page_type: job.page_type,
+          tokens_used: Object.values(stepOutputs).reduce((sum, s) => sum + (s?.tokens_used || 0), 0),
+          steps_completed: Object.keys(stepOutputs).filter(k => stepOutputs[k]).length,
+          fact_check_summary: {
+            verified: factCheckResult.verified_count || 0,
+            flagged: factCheckResult.flagged_count || 0
+          }
+        })}::jsonb,
+        ${html},
+        'draft',
+        ${metaTitle},
+        ${metaDescription},
+        ${now},
+        ${now}
+      )
+    `;
+  }
 
   // Update job with page_id
   await sql`

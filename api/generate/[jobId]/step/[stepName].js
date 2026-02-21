@@ -89,12 +89,15 @@ export default async function handler(req, res) {
     // Rename job_id back to id for consistency
     jobData.id = jobData.job_id;
 
-    if (jobData.status === 'completed') {
-      return res.status(400).json({ success: false, error: 'Job is already completed' });
+    // Allow re-running steps on completed/failed jobs with ?force=true
+    const forceRerun = req.query.force === 'true';
+
+    if (jobData.status === 'completed' && !forceRerun) {
+      return res.status(400).json({ success: false, error: 'Job is already completed. Use ?force=true to re-run a step.' });
     }
 
-    if (jobData.status === 'failed') {
-      return res.status(400).json({ success: false, error: 'Job has failed. Create a new job.' });
+    if (jobData.status === 'failed' && !forceRerun) {
+      return res.status(400).json({ success: false, error: 'Job has failed. Use ?force=true to re-run a step.' });
     }
 
     // Update job status to running
