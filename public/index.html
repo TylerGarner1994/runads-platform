@@ -4908,6 +4908,71 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Research Topic Section -->
+              <div class="section-card" style="border: 2px dashed var(--border); background: linear-gradient(135deg, rgba(99,102,241,0.03), rgba(16,185,129,0.03));">
+                <div class="facts-section-header" style="border-bottom: 1px solid var(--border);">
+                  <h3>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8"/>
+                      <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    Research a Topic
+                  </h3>
+                  <span style="font-size: 0.75rem; color: var(--text-secondary);">Powered by Perplexity AI</span>
+                </div>
+                <div class="facts-section-body">
+                  <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                    Research specific topics to find verified statistics, studies, and claims for your landing pages.
+                  </p>
+                  <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <textarea id="researchTopicInput" class="research-textarea" rows="3"
+                      placeholder="e.g. How many Americans suffer from chronic inflammation? What are the health statistics?"
+                      style="resize: vertical; min-height: 70px; font-size: 0.875rem;"></textarea>
+                    <textarea id="researchTopicContext" class="research-textarea" rows="2"
+                      placeholder="(Optional) Additional context: e.g. We sell turmeric supplements, need stats for advertorial copy"
+                      style="resize: vertical; min-height: 50px; font-size: 0.8rem; opacity: 0.8;"></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <button class="btn btn-primary btn-small" onclick="submitTopicResearch()" id="topicResearchBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="11" cy="11" r="8"/>
+                          <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        Research Topic
+                      </button>
+                      <span id="topicResearchStatus" style="font-size: 0.75rem; color: var(--text-secondary);"></span>
+                    </div>
+                  </div>
+
+                  <!-- Research Results -->
+                  <div id="topicResearchResults" style="display: none; margin-top: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                      <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-primary);">
+                        <span id="topicResultsIcon">&#9989;</span> Research Results
+                      </h4>
+                      <span id="topicResultsMeta" style="font-size: 0.7rem; color: var(--text-secondary);"></span>
+                    </div>
+                    <div id="topicResultsSummary" style="background: var(--bg-secondary); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-primary); line-height: 1.5;"></div>
+                    <div id="topicResultsFindings" class="facts-list" style="margin-bottom: 0.75rem;"></div>
+
+                    <!-- Suggested Marketing Claims -->
+                    <div id="topicSuggestedClaims" style="display: none; margin-top: 0.75rem;">
+                      <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-primary);">
+                        &#128161; Ready-to-Use Marketing Claims
+                      </h4>
+                      <div id="topicSuggestedClaimsList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                    </div>
+
+                    <!-- Related Topics -->
+                    <div id="topicRelatedTopics" style="display: none; margin-top: 0.75rem;">
+                      <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-secondary);">
+                        &#128269; Related Topics to Research
+                      </h4>
+                      <div id="topicRelatedTopicsList" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -6617,6 +6682,111 @@
       }
     }
 
+    // ─── Topic Research (Perplexity) ───
+    async function submitTopicResearch() {
+      const topic = document.getElementById('researchTopicInput').value.trim();
+      const context = document.getElementById('researchTopicContext').value.trim();
+      if (!topic) { alert('Please enter a topic to research'); return; }
+      if (!currentClientId) { alert('No client selected'); return; }
+
+      const btn = document.getElementById('topicResearchBtn');
+      const status = document.getElementById('topicResearchStatus');
+      const resultsDiv = document.getElementById('topicResearchResults');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-small"></span> Researching...';
+      status.textContent = 'Searching the web with Perplexity AI...';
+      resultsDiv.style.display = 'none';
+
+      try {
+        const res = await fetch(`/api/clients/${currentClientId}/research-topic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic, context })
+        });
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.error || 'Research failed');
+
+        // Show results
+        resultsDiv.style.display = 'block';
+        document.getElementById('topicResultsMeta').textContent =
+          `${data.claims_created} claims saved | ${data.citations} citations | ${data.tokens_used} tokens`;
+        document.getElementById('topicResultsSummary').textContent = data.summary || '';
+
+        // Render findings
+        const findingsDiv = document.getElementById('topicResultsFindings');
+        if (data.findings && data.findings.length > 0) {
+          findingsDiv.innerHTML = data.findings.map(f => `
+            <div class="fact-item" style="border-left: 3px solid ${f.confidence === 'high' ? '#10b981' : f.confidence === 'medium' ? '#f59e0b' : '#6b7280'};">
+              <span class="fact-type ${f.type === 'statistic' ? 'statistic' : 'feature'}">${f.type || 'fact'}</span>
+              <div class="fact-content">
+                <div class="fact-text">${escapeHtml(f.claim)}</div>
+                <div class="fact-source" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                  ${f.source ? `<span>${escapeHtml(f.source)}</span>` : ''}
+                  ${f.year ? `<span style="background: var(--bg-secondary); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem;">${f.year}</span>` : ''}
+                  ${f.confidence ? `<span style="font-size: 0.7rem; color: ${f.confidence === 'high' ? '#10b981' : '#f59e0b'};">&#9679; ${f.confidence}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          findingsDiv.innerHTML = '<p class="text-muted">No specific findings found. Try a more specific topic.</p>';
+        }
+
+        // Render suggested claims
+        const suggestedDiv = document.getElementById('topicSuggestedClaims');
+        const suggestedList = document.getElementById('topicSuggestedClaimsList');
+        if (data.suggested_claims && data.suggested_claims.length > 0) {
+          suggestedDiv.style.display = 'block';
+          suggestedList.innerHTML = data.suggested_claims.map(c => `
+            <div style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(99,102,241,0.08)); padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.85rem; line-height: 1.4; border-left: 3px solid #10b981;">
+              ${escapeHtml(c)}
+            </div>
+          `).join('');
+        } else {
+          suggestedDiv.style.display = 'none';
+        }
+
+        // Render related topics as clickable chips
+        const relatedDiv = document.getElementById('topicRelatedTopics');
+        const relatedList = document.getElementById('topicRelatedTopicsList');
+        if (data.related_topics && data.related_topics.length > 0) {
+          relatedDiv.style.display = 'block';
+          relatedList.innerHTML = data.related_topics.map(t => `
+            <button class="btn btn-secondary btn-small" onclick="useRelatedTopic(this)" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;"
+              data-topic="${escapeHtml(t)}">${escapeHtml(t)}</button>
+          `).join('');
+        } else {
+          relatedDiv.style.display = 'none';
+        }
+
+        status.textContent = `Done! ${data.claims_created} claims saved to Verified Facts.`;
+
+        // Refresh the facts list with new claims
+        try {
+          const claimsRes = await fetch(`/api/clients/${currentClientId}/claims`);
+          const claimsData = await claimsRes.json();
+          if (claimsData.success) populateFactsTab(claimsData.claims, currentClientData);
+        } catch (e) { /* ignore refresh error */ }
+
+      } catch (error) {
+        status.textContent = 'Error: ' + error.message;
+        status.style.color = '#ef4444';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Research Topic`;
+      }
+    }
+
+    function useRelatedTopic(btn) {
+      const topic = btn.dataset.topic;
+      document.getElementById('researchTopicInput').value = topic;
+      document.getElementById('researchTopicInput').focus();
+      // Scroll to the input
+      document.getElementById('researchTopicInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     function populatePagesTab(pages) {
       const pagesList = document.getElementById('clientPagesList');
 
@@ -6815,6 +6985,7 @@
                         <button class="btn btn-icon btn-ghost" onclick="openEditor('${page.id}')" title="Visual Edit">🎨</button>
                         <button class="btn btn-icon btn-ghost" onclick="openAnalytics('${page.id}')" title="Analytics">📊</button>
                         <button class="btn btn-icon btn-ghost" onclick="editPage('${page.id}')" title="Edit HTML">✏️</button>
+                        <button class="btn btn-icon btn-ghost" onclick="publishToShopify('${page.id}')" title="Publish to Shopify" style="color: #96bf48;">🛍️</button>
                         ${page.status !== 'live' ? `<button class="btn btn-icon btn-ghost" onclick="quickDeploy('${page.id}')" title="Deploy" style="color: var(--success)">🚀</button>` : ''}
                         <button class="btn btn-icon btn-ghost" onclick="deletePage('${page.id}')" title="Delete" style="color: var(--error)">🗑️</button>
                       </div>
@@ -7118,6 +7289,42 @@
         await loadPages();
       } catch (error) {
         alert('Error: ' + error.message);
+      }
+    }
+
+    // ─── Publish to Shopify ───
+    async function publishToShopify(pageId) {
+      if (!confirm('Publish this landing page to your Shopify store?')) return;
+
+      try {
+        const res = await fetch(`/api/pages/${pageId}/publish-shopify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ published: true })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          if (data.setup_instructions) {
+            alert('Shopify is not configured yet.\n\nTo set up:\n' +
+              '1. Go to Shopify Admin > Settings > Apps > Develop apps\n' +
+              '2. Create a custom app named "RunAds Platform"\n' +
+              '3. Enable "write_content" scope\n' +
+              '4. Install the app and copy the access token\n' +
+              '5. Add SHOPIFY_STORE_URL and SHOPIFY_ACCESS_TOKEN to Vercel env vars');
+          } else {
+            throw new Error(data.error);
+          }
+          return;
+        }
+
+        const url = data.shopify_page?.url;
+        alert(`Page published to Shopify!\n\nURL: ${url}\n\nThe page is now live on your Shopify store.`);
+        if (url && confirm('Open the Shopify page?')) {
+          window.open(url, '_blank');
+        }
+      } catch (error) {
+        alert('Error publishing to Shopify: ' + error.message);
       }
     }
 

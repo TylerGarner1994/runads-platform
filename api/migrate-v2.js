@@ -332,6 +332,26 @@ export default async function handler(req, res) {
     ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS client_id TEXT
   `);
 
+  // ============================================================
+  // 13. LANDING_PAGES - Add Shopify integration columns
+  // ============================================================
+  await runMigration('Add landing_pages.shopify_page_id', sql`
+    ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS shopify_page_id TEXT
+  `);
+  await runMigration('Add landing_pages.shopify_url', sql`
+    ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS shopify_url TEXT
+  `);
+
+  // ============================================================
+  // 14. CLIENTS - Add research_status column
+  // ============================================================
+  await runMigration('Add clients.research_status', sql`
+    ALTER TABLE clients ADD COLUMN IF NOT EXISTS research_status TEXT DEFAULT 'none'
+  `);
+  await runMigration('Add clients.last_researched_at', sql`
+    ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_researched_at TIMESTAMP
+  `);
+
   return res.status(200).json({
     success: errors.length === 0,
     message: `Migration complete. ${results.length} operations run, ${errors.length} errors.`,
