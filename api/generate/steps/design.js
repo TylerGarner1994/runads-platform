@@ -54,6 +54,7 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
     templateCss
   });
 
+  // Use extended thinking for better output quality when generating full pages
   const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -63,7 +64,7 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 16000,
+      max_tokens: 32000,
       system: systemPrompt,
       messages: [
         { role: 'user', content: userPrompt }
@@ -72,6 +73,15 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
   });
 
   const claudeData = await claudeResponse.json();
+
+  // Check for truncation - if stop_reason is 'max_tokens', the output was cut off
+  const stopReason = claudeData.stop_reason;
+  if (stopReason === 'max_tokens') {
+    console.warn('[Design Step] WARNING: Output was truncated at max_tokens limit. Page may be incomplete.');
+  }
+
+  console.log('[Design Step] Stop reason:', stopReason, '| Output tokens:', claudeData.usage?.output_tokens);
+
   let html = claudeData.content?.[0]?.text || '';
 
   // Clean up the HTML (remove markdown code blocks if present)
