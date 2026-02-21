@@ -6796,7 +6796,11 @@
             <span class="page-name">${escapeHtml(p.name)}</span>
             <span class="page-status ${p.status}">${p.status}</span>
             <span style="color: var(--text-light); font-size: 12px;">${new Date(p.created_at).toLocaleDateString()}</span>
-            <button class="btn btn-secondary btn-small" onclick="openEditor('${p.id}')">Edit</button>
+            <div style="display: flex; gap: 0.25rem; align-items: center;">
+              <button class="btn btn-secondary btn-small" onclick="openEditor('${p.id}')">Edit</button>
+              <button class="btn btn-icon btn-ghost" onclick="publishToShopify('${p.id}')" title="Publish to Shopify" style="color: #96bf48; font-size: 1.1rem; padding: 0.25rem;">🛍️</button>
+              <button class="btn btn-icon btn-ghost" onclick="openPageInNewTab('${p.id}', '${p.slug || ''}')" title="View Page" style="font-size: 1.1rem; padding: 0.25rem;">🔗</button>
+            </div>
           </div>
         `).join('');
       } else {
@@ -7326,6 +7330,12 @@
       } catch (error) {
         alert('Error publishing to Shopify: ' + error.message);
       }
+    }
+
+    function openPageInNewTab(pageId, slug) {
+      const baseUrl = getBaseUrl();
+      const url = slug ? `${baseUrl}/p/${slug}` : `${baseUrl}/api/pages/${pageId}`;
+      window.open(url, '_blank');
     }
 
     function getFormData() {
