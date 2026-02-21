@@ -352,6 +352,13 @@ export default async function handler(req, res) {
     ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_researched_at TIMESTAMP
   `);
 
+  // ============================================================
+  // 15. LANDING_PAGES - Add tracking_pixel column
+  // ============================================================
+  await runMigration('Add landing_pages.tracking_pixel', sql`
+    ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS tracking_pixel TEXT
+  `);
+
   return res.status(200).json({
     success: errors.length === 0,
     message: `Migration complete. ${results.length} operations run, ${errors.length} errors.`,

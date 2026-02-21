@@ -5857,6 +5857,7 @@
     let pages = [];
     let clients = [];
     let selectedGenerateType = null;
+    let pendingGenerateClientId = null;
     let currentEditingPage = null;
 
     // ============================================
@@ -6835,10 +6836,9 @@
 
     function generatePageForClient() {
       if (!currentClientId) return;
-      // Open generate modal with client pre-selected
-      // For now, just open the modal
+      // Store the client context so generatePageV2 can use it
+      pendingGenerateClientId = currentClientId;
       openGenerateModal();
-      // TODO: Pre-fill client in generate modal
     }
 
     function addNewFact() {
@@ -7154,10 +7154,12 @@
 
       try {
         // Step 1: Start the job
+        const clientId = pendingGenerateClientId || null;
         const startRes = await fetch('/api/generate/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            client_id: clientId,
             page_type: selectedGenerateType,
             target_audience: document.getElementById('generateAudience').value.trim() || null,
             offer_details: `Tone: ${document.getElementById('generateTone').value}`,
@@ -7437,9 +7439,16 @@
     function openGenerateModal() {
       selectedGenerateType = null;
       document.querySelectorAll('.generate-option').forEach(el => el.classList.remove('selected'));
-      document.getElementById('generateProduct').value = '';
       document.getElementById('generateAudience').value = '';
       document.getElementById('generateTone').value = 'professional';
+
+      // Pre-fill product URL from client data if generating from client context
+      if (pendingGenerateClientId && currentClientData?.website_url) {
+        document.getElementById('generateProduct').value = currentClientData.website_url;
+      } else {
+        document.getElementById('generateProduct').value = '';
+      }
+
       document.getElementById('generateModal').classList.add('active');
       document.body.style.overflow = 'hidden';
     }
@@ -7447,6 +7456,7 @@
     function closeGenerateModal() {
       document.getElementById('generateModal').classList.remove('active');
       document.body.style.overflow = '';
+      pendingGenerateClientId = null;
       resetGenerateModal();
     }
 

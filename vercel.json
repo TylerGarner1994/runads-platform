@@ -32,6 +32,10 @@
       "destination": "/api/clients/[id]/claims"
     },
     {
+      "source": "/api/clients/:id/research-topic",
+      "destination": "/api/clients/[id]/research-topic"
+    },
+    {
       "source": "/api/clients/:id",
       "destination": "/api/clients/[id]"
     },
@@ -50,6 +54,10 @@
     {
       "source": "/api/pages/:id/leads",
       "destination": "/api/pages/[id]/leads"
+    },
+    {
+      "source": "/api/pages/:id/publish-shopify",
+      "destination": "/api/pages/[id]/publish-shopify"
     },
     {
       "source": "/api/pages/:id",
