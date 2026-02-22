@@ -201,7 +201,7 @@ export default async function handler(req, res) {
         step_outputs = ${JSON.stringify(stepOutputs)}::jsonb,
         tokens_used = ${totalTokens},
         estimated_cost = ${estimatedCost},
-        page_id = ${stepResult.page_id || null},
+        page_id = COALESCE(${stepResult.page_id || null}, page_id),
         completed_at = ${isComplete ? new Date().toISOString() : null},
         updated_at = ${new Date().toISOString()}
       WHERE id = ${jobId}
