@@ -264,44 +264,120 @@ ${fontPairing.googleImport || '@import url("https://fonts.googleapis.com/css2?fa
 `;
 
   const pagePrompts = {
-    advertorial: `You are an expert landing page designer and direct-response copywriter. Create a complete, production-ready advertorial landing page.
+    advertorial: `You are an expert landing page designer trained in direct-response conversion design. You understand the psychology behind every layout decision. Create a complete, production-ready advertorial landing page.
 
 ${baseDesignSystem}
 
 ## ADVERTORIAL-SPECIFIC DESIGN
 
-Reference design: Premium editorial/news publication style (like NY Times health section or Forbes sponsored content)
+Reference design: Premium editorial/news publication style (NY Times health section, Forbes sponsored content). The reader should feel they're reading a legitimate article.
+
+### Design Psychology Principles
+- Each section builds on the previous, creating a "slippery slide" (Sugarman) - the reader can't stop
+- Visual hierarchy guides the eye from problem to discovery to solution to proof to CTA
+- Dark sections create emotional weight (problem, product reveal, final CTA)
+- Light sections create relief and trust (discovery, testimonials, how-it-works)
+- Alternating section tones create visual rhythm that maintains engagement
+- White space = credibility. Dense layouts = spam. Use generous spacing.
 
 ### Visual Style
 - Clean, editorial aesthetic with generous whitespace
-- Serif font for body text for credibility and readability
-- Sans-serif for headlines
-- Dark backgrounds for key sections (hero, product reveal, final CTA)
-- Accent color for highlights, CTAs, and important stats
+- Serif font for body text for credibility and readability (trust signal)
+- Sans-serif for headlines and UI elements (modern, authoritative)
+- Dark backgrounds for emotionally heavy sections (hero, product reveal, final CTA)
+- Light/white backgrounds for trust-building sections (proof, how-it-works)
+- Accent color ONLY for CTAs and key highlights - don't overuse
 - Professional, almost clinical feel with premium polish
+- Pull quotes with oversized quotation marks for credibility anchoring
+- Highlighted stat boxes that break up long-form text
 
-### Page Structure (MUST follow this exact 9-section flow)
-1. **Hero Section** - Problem-focused headline with credibility hook. Include byline (author name, credentials), reading time, date. Dark or dramatic background with overlay.
-2. **Patient/Customer Story** - Open with a relatable story (name, age, specific struggle). Use drop-cap for first letter. Narrative paragraph format.
-3. **The Problem** - Establish why existing solutions fail. Use statistics (verified only). Include a highlight box or pullquote with key stat.
-4. **The Discovery** - Expert credibility + scientific mechanism. Introduce the expert/researcher. Build authority.
-5. **The Solution** - Natural product introduction with image. Feature grid showing key benefits. Product card with dark background.
-6. **How It Works** - 3-step or 3-part mechanism breakdown. Numbered steps with icons. Clean, scannable layout.
-7. **Proof Section** - Multiple testimonials in grid (3 minimum). Before/after or transformation elements. Star ratings. Specific results in quotes.
-8. **Risk Reversal** - Guarantee badge/section. FAQ accordion (4-6 questions). Address common objections.
-9. **Final CTA** - Urgency + discount/offer. Large CTA button. Money-back guarantee reminder. "Act now" framing without being pushy.
+### Page Structure (MUST follow this exact 10-section advertorial architecture)
 
-### Must Include
-- Sticky CTA bar that appears on scroll (JavaScript)
-- Reading progress bar at top (JavaScript)
-- Byline with credible author name and title
-- Multiple CTAs throughout (minimum 3)
-- Social proof stats in hero area (e.g., "75,000+ customers")
+1. **Publication Header + Hero Section**
+   - Publication-style topbar with brand/publication name
+   - Problem-focused headline that reads like editorial (NOT an ad headline)
+   - Byline: "By Dr./Editor [Name], [Credential]" with date and reading time
+   - Dark or dramatic background with gradient overlay
+   - Social proof counter in hero ("147,832 people have read this report")
+   - Native ad disclosure label ("ADVERTISEMENT" or "SPONSORED CONTENT") - small, subtle
+
+2. **The Opening Story / Editorial Lead** (The Hook - Schwartz's first 50 words)
+   - Open with a relatable character story (name, age, city, specific struggle)
+   - Drop-cap on first letter (editorial styling)
+   - Narrative paragraph format, journalistic voice
+   - Make reader identify: "that's me" moment
+   - Purpose: Emotional engagement + relevance establishment
+
+3. **Problem Establishment & Agitation** (Build the pain)
+   - "They told you" structure showing failed conventional approaches
+   - Highlighted stat box or pullquote with key verified statistic
+   - Consequences of not solving: health, financial, relationship, etc.
+   - Visual: Warning-style callout boxes, red/amber accent highlights
+   - Purpose: Make the problem feel urgent and unbearable BEFORE any solution
+
+4. **The Discovery / Pivot** (The "aha moment")
+   - Transition: "Then, researchers at [institution] discovered..."
+   - Expert introduction with credential badges (university logos, publication logos)
+   - Authority positioning through institutional credibility
+   - Curiosity gap: hint at what was found without revealing the product
+   - Visual: Clean, authoritative layout with research-style formatting
+
+5. **The Unique Mechanism** (Why this is different)
+   - Name the branded mechanism prominently
+   - Simple explanation using analogy or straightforward language
+   - Infographic-style visual showing how the mechanism works
+   - "No wonder everything else failed" moment
+   - Make them feel SMART for understanding this, not stupid for not knowing
+   - Visual: Diagram/flowchart styling, numbered explanation boxes
+
+6. **The Solution Introduction** (Product reveal)
+   - Natural bridge from mechanism to product
+   - Product image prominently displayed with dark background card
+   - Feature grid showing 4-6 key benefits with icons
+   - "Developed by [credentials] based on [mechanism]"
+   - Initial proof element (most impressive stat or endorsement)
+   - Visual: Premium product card layout, elevated shadow, brand colors
+
+7. **How It Works** (3-step simplicity)
+   - Numbered steps with large step numbers and icons
+   - Clean, scannable grid layout
+   - Each step: icon + headline + 2-3 sentence explanation
+   - Make the process feel simple and achievable
+   - Visual: Step-by-step cards or timeline layout
+
+8. **Proof & Testimonials** (Stack the evidence)
+   - 3-4 detailed testimonials in grid with star ratings
+   - Specific results in quotes (numbers, timeframes)
+   - Different avatar types (address different objections)
+   - Before/after or transformation elements where applicable
+   - Visual: Testimonial cards with photo placeholders, star ratings, verified badges
+
+9. **Risk Reversal / FAQ** (Remove final objections)
+   - Guarantee badge/section with shield icon
+   - FAQ accordion (4-6 questions) addressing top objections
+   - "What if it doesn't work?" answered directly
+   - Visual: FAQ accordion with expand/collapse, guarantee seal
+
+10. **Final CTA** (The close)
+    - Urgency element (real, not manufactured)
+    - Large, prominent CTA button with hover effect
+    - Value stack summary
+    - Money-back guarantee reminder
+    - P.S. style final appeal (second-most-read element per Halbert)
+    - Visual: Dark background, large button, trust badges row beneath
+
+### Must Include (Technical)
+- Sticky CTA bar that appears on scroll past hero (JavaScript)
+- Reading progress bar at top of page (JavaScript)
+- Smooth scroll to CTA on button click
+- Multiple CTAs throughout (minimum 3: after discovery, after proof, final)
 - Drop-cap on first paragraph of story section
-- Pull quotes styled with large quote marks
+- Pull quotes styled with large decorative quote marks
 - Medical/expert disclaimer if health-related
-- Native ad disclosure at top
-- Form with email capture`,
+- Native ad disclosure at top ("SPONSORED" or "ADVERTISEMENT")
+- Email capture form with action to tracking endpoint
+- Hover effects on all interactive elements
+- CSS animations for section entry (fade-in on scroll)`,
 
     listicle: `You are an expert landing page designer and native advertising specialist. Create a complete, production-ready listicle/native advertorial page.
 
@@ -309,36 +385,59 @@ ${baseDesignSystem}
 
 ## LISTICLE-SPECIFIC DESIGN
 
-Reference design: Consumer advice article with embedded native ad (like BuzzFeed or NerdWallet style)
+Reference design: Consumer advice article with embedded native ad (like BuzzFeed, NerdWallet, or Healthline style)
+
+### Design Psychology
+- Each numbered tip creates a "commitment loop" (Sugarman consistency trigger) - reader who starts wants to finish all tips
+- The product tip (#3) is placed after enough value has been given to trigger reciprocity (Cialdini)
+- Visual differentiation of the product tip must be subtle - a slightly different background, NOT a screaming ad
+- Number badges create scanability and a sense of completeness (desire to collect all tips)
+- Comparison table triggers anchoring effect - show alternatives first at higher price/lower value
 
 ### Visual Style
-- News/magazine publication look
-- Clean header with publication-style branding
-- Brand color accent for header bar
-- White background with generous whitespace
-- Card-style sections for each tip
-- Comparison tables and savings callouts with green accents
+- News/magazine publication feel - branded header bar
+- Brand color accent for publication header and tip number badges
+- White/light background for all advice sections
+- Card-style sections for each tip with subtle shadow
+- Product tip (#3) gets slightly elevated card with brand accent border (not obviously different)
+- Comparison tables with green "savings" accents and red "overpriced" accents
+- Inline testimonials after product section (not separated)
 
 ### Page Structure (MUST follow this flow)
-1. **Header Bar** - Publication-style with logo and tagline
-2. **Hero Section** - Listicle headline ("X Ways to..." or "X Things...")
-3. **Introduction** - Set up the value, mention local relevance if applicable
-4. **Tips 1-2** - Genuine, valuable advice (NOT the product)
-5. **Tip 3** - THE NATIVE AD - Naturally introduce the product as a "discovery" with comparison showing advantage
-6. **Tips 4-6** - More genuine advice
-7. **Mid-Content CTA** - Subtle reminder of the product
-8. **Remaining Tips** - Complete the list with real value (minimum 6-8 total tips)
-9. **Conclusion** - Wrap up with final CTA
+1. **Publication Header Bar** - Brand-colored topbar with publication name and tagline
+2. **Hero Section** - Listicle headline using fascination format ("X Proven Ways...", "X Things Most People Don't Know...")
+   - Byline with author, date, reading time
+   - Social proof ("Based on 2,000+ customer reviews" or similar)
+3. **Introduction** (150-250 words) - Set up the value, mention why this topic matters now
+4. **Tips 1-2** - Genuine, valuable advice with fascination headlines
+   - Each tip: large number badge + compelling headline + 100-200 words of actionable content
+   - Tip headlines use bullet formulas: counterintuitive, how-to, hidden secret, warning
+5. **Tip 3 - THE NATIVE AD SECTION** - The most important section
+   - Headline uses discovery/comparison formula
+   - Product introduced as "the one most people miss" or "the insider pick"
+   - Comparison table/visual showing product advantage over alternatives
+   - Embedded testimonial with star rating
+   - Subtle CTA button (not aggressive)
+   - Slightly elevated card design (brand accent border top)
+6. **Tips 4-7** - More genuine advice (quick wins + deeper insights)
+7. **Mid-Content CTA Banner** - Subtle horizontal banner reminding of Tip 3's discovery
+   - "Recommended by our editorial team" style
+8. **Final Tip** - The conclusion tip, wrapping with value
+9. **Conclusion Section** - Summary + final strong CTA with urgency
+   - Email capture form
+   - Trust badges row (money-back, free shipping, verified reviews)
 
 ### Must Include
-- Numbered list format with visual number badges
-- Card-based layout for each tip section
-- Comparison visual for the native ad section
-- Savings/benefit callouts with green accent color
-- Social proof (star rating, customer count)
-- At least 6 genuine tips (not all about the product)
-- Email capture form
-- Trust badges`,
+- Large, styled number badges for each tip (circles or rounded squares with tip number)
+- Card-based layout with consistent padding/margin for each tip
+- Comparison visual for the native ad section (side-by-side or table)
+- Green accent for positive callouts (savings, benefits, check marks)
+- Star ratings and customer count in product section
+- At minimum 7 genuine tips (only tip #3 is the product)
+- Email capture form near bottom
+- Trust/guarantee badges
+- Reading time in hero
+- Publication-style footer`,
 
     quiz: `You are an expert landing page designer and quiz funnel specialist. Create a complete, production-ready interactive quiz page with JavaScript.
 

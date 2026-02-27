@@ -37,9 +37,55 @@ export async function runStrategyStep({ job, stepOutputs, additionalInput, jobId
     verifiedClaims = claimsResult.rows;
   }
 
-  const strategyPrompt = `Create a detailed page strategy for a ${page_type} landing page.
+  const strategyPrompt = `You are a world-class direct response strategist trained in the frameworks of Schwartz, Halbert, Bencivenga, Makepeace, Carlton, Sugarman, and Evaldo Albuquerque.
 
-BUSINESS RESEARCH:
+Create a detailed page strategy for a ${page_type} landing page.
+
+## STRATEGIC FRAMEWORKS TO APPLY
+
+### 1. SCHWARTZ AWARENESS CALIBRATION
+Determine where the prospect sits and match strategy accordingly:
+- Level 5 (Most Aware): Lead with offer/deal directly
+- Level 4 (Product Aware): Emphasize superiority and proof
+- Level 3 (Solution Aware): Differentiate via unique mechanism
+- Level 2 (Problem Aware): Agitate > Solution > Product
+- Level 1 (Unaware): Story/Curiosity > Problem > Solution
+
+### 2. MARKET SOPHISTICATION ANALYSIS
+Determine the market stage:
+- Stage 1 (First to market): Simple, direct claims
+- Stage 2: Enlarge the claim with specifics
+- Stage 3: Add unique mechanism ("...with our proprietary process")
+- Stage 4: Enhance mechanism with credibility
+- Stage 5 (Most markets today): Lead with story/identification, embed claims
+
+### 3. UNIQUE MECHANISM DEVELOPMENT (Evaldo's 16-Word Framework)
+"This [NEW OPPORTUNITY] is the key to [THEIR DESIRE] and it's only attainable through my [UNIQUE MECHANISM]."
+Mechanism types: New Discovery, Hidden Cause, Overlooked Factor, Proprietary Process, Counter-Intuitive Approach
+
+### 4. DOMINANT RESIDENT EMOTION (Makepeace/Bencivenga)
+Every market has a dominant emotional frequency. Identify it:
+- Financial: FEAR (losing money, missing out)
+- Weight loss/health: SHAME + HOPE (appearance, vitality)
+- Business/opportunity: HOPE + GREED (success, proving doubters)
+- Supplements: FEAR + HOPE (decline vs. energy)
+Your copy must resonate at this emotional frequency.
+
+### 5. PROOF HIERARCHY (Bencivenga)
+Stack proof strongest to weakest:
+1. Third-party verification (studies, publications)
+2. Expert endorsements
+3. Demonstration/Results
+4. Specific testimonials with details
+5. General testimonials
+6. Logical arguments
+Never make a claim without immediate proof.
+
+### 6. PSYCHOLOGICAL TRIGGERS TO MAP
+Select 3-5 primary triggers for this audience:
+Loss Aversion, Social Proof, Authority, Scarcity, Curiosity Gap, Anchoring, Commitment/Consistency, In-Group Bias, Endowment Effect, Contrast Effect
+
+## BUSINESS RESEARCH
 Company: ${researchData.company_name || 'Unknown'}
 Industry: ${researchData.industry || 'Unknown'}
 Value Props: ${JSON.stringify(researchData.value_propositions || [])}
@@ -64,49 +110,90 @@ ${getPageTypeRequirements(page_type)}
 
 Create a comprehensive strategy document in this JSON format:
 {
+  "awareness_level": {
+    "level": 1-5,
+    "label": "Unaware|Problem Aware|Solution Aware|Product Aware|Most Aware",
+    "justification": "Why this audience sits at this level",
+    "lead_strategy": "How the page should open based on awareness"
+  },
+  "market_sophistication": {
+    "stage": 1-5,
+    "justification": "Why the market is at this stage",
+    "headline_approach": "How to structure headlines for this stage"
+  },
+  "dominant_emotion": "The primary emotional frequency to match",
+  "unique_mechanism": {
+    "name": "Branded mechanism name",
+    "type": "New Discovery|Hidden Cause|Overlooked Factor|Proprietary Process|Counter-Intuitive",
+    "explanation": "Why this works when everything else failed",
+    "sixteen_word_sale": "Complete Evaldo 16-word framework sentence"
+  },
+  "psychological_triggers": [
+    {
+      "trigger": "Trigger name",
+      "application": "How to apply it on this page",
+      "section": "Which section uses it"
+    }
+  ],
   "page_goal": "The primary conversion goal",
   "target_persona": {
-    "description": "Who this page is for",
-    "pain_points": ["Their main problems"],
-    "desires": ["What they want to achieve"],
-    "objections": ["Why they might not convert"]
+    "description": "Who this page is for (specific demographics + psychographics)",
+    "pain_points": ["Surface pain", "Underlying real pain", "Emotional root"],
+    "desires": ["What they say they want", "What they actually want", "Deepest need"],
+    "objections": ["Primary objection + what they really mean", "Secondary", "Tertiary"],
+    "failed_solutions": ["What they've tried before and why it didn't work"],
+    "decision_style": "Analytical|Emotional|Impulsive|Deliberate",
+    "language_patterns": ["Phrases they use to describe their problem"]
   },
   "hook": {
-    "headline": "Main headline (attention-grabbing, benefit-focused)",
-    "subheadline": "Supporting headline",
-    "angle": "The psychological angle (curiosity, fear, desire, urgency, etc.)"
+    "headline": "Main headline matched to awareness + sophistication level",
+    "subheadline": "Supporting headline with specificity and mechanism hint",
+    "angle": "The psychological angle and which trigger powers it",
+    "lead_type": "Story|Problem-Agitation|Secret/Discovery|Proclamation|Question|Proof"
   },
   "sections": [
     {
       "name": "section_name",
-      "purpose": "What this section accomplishes",
+      "purpose": "What this section accomplishes psychologically",
       "key_message": "The main point to communicate",
       "elements": ["List of elements to include"],
-      "claims_to_use": ["Which verified claims fit here"]
+      "claims_to_use": ["Which verified claims fit here"],
+      "proof_type": "Which proof hierarchy level this section uses",
+      "triggers_used": ["Which psychological triggers are active here"]
     }
   ],
   "cta_strategy": {
     "primary_cta": "Main call to action text",
     "secondary_cta": "Alternative/softer CTA",
     "cta_placement": ["Where CTAs should appear"],
-    "urgency_element": "How to create urgency (if applicable)"
+    "urgency_element": "Real urgency reason (not manufactured)",
+    "risk_reversal": "Guarantee type and language"
   },
   "objection_handling": [
     {
-      "objection": "Potential objection",
-      "counter": "How to address it",
+      "objection": "What they say",
+      "real_concern": "What they actually mean",
+      "counter": "How to address it using which proof type",
       "where": "Section where this is addressed"
     }
   ],
   "social_proof_strategy": {
-    "testimonials_to_highlight": ["Which testimonials to use"],
+    "testimonials_to_highlight": ["Which testimonials to use and why"],
     "trust_signals": ["What trust elements to include"],
-    "placement": ["Where social proof appears"]
+    "proof_stacking_order": ["How proof elements build on each other"],
+    "placement": ["Where social proof appears for maximum impact"]
   },
   "tone_guidelines": {
-    "voice": "How to sound",
-    "words_to_use": ["Preferred terminology"],
-    "words_to_avoid": ["What not to say"]
+    "voice": "How to sound (matched to persona's language preferences)",
+    "words_to_use": ["Words that resonate with this persona"],
+    "words_to_avoid": ["Buzzwords they're numb to"],
+    "conversational_bridges": ["Transition phrases for slippery slide flow"]
+  },
+  "copy_architecture": {
+    "word_count_target": "Target based on awareness level and page type",
+    "lead_percentage": "How much of the copy is the lead/hook (should be 20%)",
+    "proof_density": "How heavily to stack proof elements",
+    "story_elements": "Key narrative arc: character + struggle + discovery + transformation"
   }
 }
 
@@ -121,7 +208,7 @@ Return ONLY valid JSON.`;
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
+      max_tokens: 5000,
       messages: [
         { role: 'user', content: strategyPrompt }
       ]
