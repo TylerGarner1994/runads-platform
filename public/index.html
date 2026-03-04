@@ -7192,12 +7192,14 @@
           });
 
           let stepResult;
+          const stepResText = await stepRes.text();
           try {
-            stepResult = await stepRes.json();
+            stepResult = JSON.parse(stepResText);
           } catch (parseErr) {
             stepEl.classList.remove('running');
             stepEl.classList.add('failed');
-            throw new Error(`${stepName} timed out or returned an invalid response (HTTP ${stepRes.status}). Try again.`);
+            console.error(`[${stepName}] HTTP ${stepRes.status} - Raw response:`, stepResText.substring(0, 500));
+            throw new Error(`${stepName} failed (HTTP ${stepRes.status}): ${stepResText.substring(0, 120)}`);
           }
 
           if (!stepRes.ok) {
