@@ -181,7 +181,7 @@ RULES:
 9. For style changes, include enough context to uniquely identify the element
 10. If the change requires adding entirely new sections, use a search string that identifies WHERE to insert and include the surrounding context plus the new content in replace`;
 
-    const { text: responseText } = await callClaude({
+    const { text: responseText, tokensUsed } = await callClaude({
       systemPrompt: chatSystemPrompt,
       userPrompt: `Here is the current HTML:\n\n${htmlContext}\n\nUser request: ${message}`,
       model: 'claude-haiku-4-5-20251001',
@@ -237,7 +237,7 @@ RULES:
       return res.json({
         success: false,
         html: currentHtml,
-        tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        tokens: tokensUsed,
         saved: false,
         mode: 'diff',
         message: 'No changes could be applied. The AI could not find the right elements to modify. Try being more specific.',
@@ -258,7 +258,7 @@ RULES:
       }
     }
 
-    const tokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+    const tokens = tokensUsed;
 
     res.json({
       success: true,

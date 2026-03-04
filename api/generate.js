@@ -253,6 +253,7 @@ Respond in this exact JSON format:
     // ============================================================
     // PHASE 3: Revision if needed (one pass)
     // ============================================================
+    let revisionTokens = 0;
     if (reviewData.needs_revision && reviewData.revision_instructions) {
       const revisionPrompt = `You are improving a landing page based on expert feedback.
 
@@ -267,13 +268,15 @@ Return ONLY the complete modified HTML. Start with <!DOCTYPE html>.`;
 
       const revResponse = await callClaude(apiKey, revisionPrompt, 'claude-sonnet-4-6');
       html = cleanHtmlResponse(revResponse.content[0].text);
+      revisionTokens = (revResponse.usage?.input_tokens || 0) + (revResponse.usage?.output_tokens || 0);
     }
 
     // ============================================================
     // PHASE 4: Save page to storage
     // ============================================================
     const totalTokens = (genResponse.usage?.input_tokens || 0) + (genResponse.usage?.output_tokens || 0) +
-                        (reviewResponse.usage?.input_tokens || 0) + (reviewResponse.usage?.output_tokens || 0);
+                        (reviewResponse.usage?.input_tokens || 0) + (reviewResponse.usage?.output_tokens || 0) +
+                        revisionTokens;
 
     let savedPage = null;
     try {
