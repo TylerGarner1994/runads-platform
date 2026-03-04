@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
-import { callClaude } from '../../../lib/claude.js';
+import { callClaudeWithFallback } from '../../../lib/claude.js';
 import { getBrandSkillContext } from '../../../lib/skill-loader.js';
 
 /**
@@ -128,10 +128,12 @@ Be PRECISE with hex codes - extract them from the actual CSS when possible.
 If you can't determine a value, use industry-standard defaults.
 Return ONLY valid JSON.`;
 
-  const brandSystemPrompt = `You are a brand identity extraction specialist. Analyze websites to create precise brand style guides.${skillContext}`;
+  const basePrompt = 'You are a brand identity extraction specialist. Analyze websites to create precise brand style guides.';
+  const fullPrompt = `${basePrompt}${skillContext}`;
 
-  const { tokensUsed, json: parsedJson } = await callClaude({
-    systemPrompt: brandSystemPrompt,
+  const { tokensUsed, json: parsedJson } = await callClaudeWithFallback({
+    systemPrompt: fullPrompt,
+    baseSystemPrompt: basePrompt,
     userPrompt: brandPrompt,
     model: 'claude-sonnet-4-6',
     maxTokens: 2000

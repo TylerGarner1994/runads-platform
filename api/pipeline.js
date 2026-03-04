@@ -12,7 +12,7 @@ import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getP
 import { savePage as savePageToStorage, getClient, updateClient, saveVerifiedClaims, getVerifiedClaims } from '../lib/storage.js';
 import { deployPage as deployToGitHubPages, getPagesUrl } from '../lib/github.js';
 import { getResearchSkillContext, getStrategySkillContext, getCopySkillContext, getBrandSkillContext } from '../lib/skill-loader.js';
-import { callClaude as callClaudeShared, parseJsonResponse } from '../lib/claude.js';
+import { callClaude as callClaudeShared, callClaudeWithFallback, parseJsonResponse } from '../lib/claude.js';
 
 // ============================================================
 // ANTHROPIC API HELPER (wrapper for backward compatibility)
@@ -477,11 +477,16 @@ Return JSON:
 }`;
 
   const strategySkillContext = getStrategySkillContext();
-  const strategySystemPrompt = strategySkillContext
-    ? `You are a world-class direct response strategist. Apply the frameworks below to create comprehensive page strategies.${strategySkillContext}`
-    : null;
+  const strategyBase = 'You are a world-class direct response strategist. Create comprehensive page strategies.';
+  const strategyFull = strategySkillContext ? `${strategyBase}\n\nApply the frameworks below:${strategySkillContext}` : strategyBase;
 
-  const { text, tokensUsed } = await callClaude(strategySystemPrompt, userPrompt, 'claude-sonnet-4-6', 3000);
+  const { text, tokensUsed } = await callClaudeWithFallback({
+    systemPrompt: strategyFull,
+    baseSystemPrompt: strategyBase,
+    userPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 3000
+  });
   const strategyData = parseJSON(text);
   return { data: strategyData, tokensUsed };
 }
@@ -593,11 +598,16 @@ Return JSON:
 }`;
 
   const copySkillContext = getCopySkillContext(pageType);
-  const copySystemPrompt = copySkillContext
-    ? `You are an elite direct-response copywriter synthesizing the proven frameworks of history's greatest copywriters.${copySkillContext}`
-    : null;
+  const copyBase = 'You are an elite direct-response copywriter synthesizing the proven frameworks of history\'s greatest copywriters.';
+  const copyFull = copySkillContext ? `${copyBase}${copySkillContext}` : copyBase;
 
-  const { text, tokensUsed } = await callClaude(copySystemPrompt, userPrompt, 'claude-sonnet-4-6', 8000);
+  const { text, tokensUsed } = await callClaudeWithFallback({
+    systemPrompt: copyFull,
+    baseSystemPrompt: copyBase,
+    userPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 8000
+  });
   const copyData = parseJSON(text);
   return { data: copyData, tokensUsed };
 }

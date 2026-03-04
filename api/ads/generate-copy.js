@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { verifyAuth } from '../../lib/auth.js';
 import db from '../../lib/database.js';
-import { callClaude } from '../../lib/claude.js';
+import { callClaudeWithFallback } from '../../lib/claude.js';
 import { buildAdCopyContext } from '../../lib/meta-ads-context/index.js';
 import { getAdGenSkillContext } from '../../lib/skill-loader.js';
 
@@ -74,10 +74,8 @@ export default async function handler(req, res) {
     });
     const adSkillContext = getAdGenSkillContext();
 
-    const systemPrompt = `You are an elite Meta ads copywriter who has generated over $100M in revenue for clients. You write ads that stop the scroll, create emotional connection, and drive action.
-
-${adCopyContext}
-${adSkillContext}`;
+    const basePrompt = 'You are an elite Meta ads copywriter who has generated over $100M in revenue for clients. You write ads that stop the scroll, create emotional connection, and drive action.';
+    const fullPrompt = `${basePrompt}\n\n${adCopyContext}\n${adSkillContext}`;
 
     const prompt = buildAdCopyPrompt({
       client,
@@ -94,8 +92,9 @@ ${adSkillContext}`;
       customInstructions: custom_instructions
     });
 
-    const { text: responseText, tokensUsed: totalTokens, json: parsedJson } = await callClaude({
-      systemPrompt,
+    const { text: responseText, tokensUsed: totalTokens, json: parsedJson } = await callClaudeWithFallback({
+      systemPrompt: fullPrompt,
+      baseSystemPrompt: basePrompt,
       userPrompt: prompt,
       model: 'claude-sonnet-4-6',
       maxTokens: 4000

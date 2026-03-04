@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import { callClaude } from '../../../lib/claude.js';
+import { callClaudeWithFallback } from '../../../lib/claude.js';
 import { getStrategySkillContext } from '../../../lib/skill-loader.js';
 
 /**
@@ -198,10 +198,12 @@ Create a comprehensive strategy document in this JSON format:
 
 Return ONLY valid JSON.`;
 
-  const systemPrompt = `You are a world-class direct response strategist. Apply the frameworks below to create comprehensive page strategies.${skillContext}`;
+  const basePrompt = 'You are a world-class direct response strategist. Create comprehensive page strategies.';
+  const fullPrompt = `${basePrompt}\n\nApply the frameworks below:${skillContext}`;
 
-  const { text: responseText, tokensUsed, json: parsedJson } = await callClaude({
-    systemPrompt,
+  const { text: responseText, tokensUsed, json: parsedJson } = await callClaudeWithFallback({
+    systemPrompt: fullPrompt,
+    baseSystemPrompt: basePrompt,
     userPrompt: strategyPrompt,
     model: 'claude-sonnet-4-6',
     maxTokens: 5000

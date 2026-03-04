@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import { callClaude } from '../../../lib/claude.js';
+import { callClaudeWithFallback } from '../../../lib/claude.js';
 import { getCopySkillContext } from '../../../lib/skill-loader.js';
 
 /**
@@ -30,7 +30,7 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
   // Append skill context (legendary-sales-letter, copywriting masters, etc.) to system prompt
   const baseSystemPrompt = getCopySystemPrompt(page_type);
   const skillContext = getCopySkillContext(page_type);
-  const systemPrompt = baseSystemPrompt + skillContext;
+  const fullSystemPrompt = baseSystemPrompt + skillContext;
 
   const userPrompt = buildCopyUserPrompt({
     page_type,
@@ -40,8 +40,9 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
     verifiedClaims
   });
 
-  const { text: responseText, tokensUsed, json: parsedJson } = await callClaude({
-    systemPrompt,
+  const { text: responseText, tokensUsed, json: parsedJson } = await callClaudeWithFallback({
+    systemPrompt: fullSystemPrompt,
+    baseSystemPrompt,
     userPrompt,
     model: 'claude-sonnet-4-6',
     maxTokens: 8000
