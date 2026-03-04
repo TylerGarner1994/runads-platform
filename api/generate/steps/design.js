@@ -560,22 +560,26 @@ ${baseDesignSystem}
 // USER PROMPT BUILDER
 // ============================================================
 function buildUserPrompt({ page_type, copy, brandGuide, strategy, researchData, allImages, productImages, fontPairing, templateHtml, templateCss }) {
+  // Cap copy data to prevent oversized input (skill-enriched copy can be 10K+ tokens)
+  const copyStr = JSON.stringify(copy, null, 2);
+  const cappedCopy = copyStr.length > 12000 ? copyStr.substring(0, 12000) + '\n...(truncated)' : copyStr;
+
   let prompt = `Create a stunning, conversion-optimized ${page_type} landing page using the content below.
 
 ## PAGE COPY (Use this exact copy in the page)
-${JSON.stringify(copy, null, 2)}
+${cappedCopy}
 
 ## STRATEGY CONTEXT
 Page goal: ${strategy.page_goal || 'conversion'}
-Target persona: ${JSON.stringify(strategy.target_persona || {})}
-CTA Strategy: ${JSON.stringify(strategy.cta_strategy || {})}
+Target persona: ${JSON.stringify(strategy.target_persona || {}).substring(0, 1500)}
+CTA Strategy: ${JSON.stringify(strategy.cta_strategy || {}).substring(0, 1000)}
 Tone: ${strategy.tone_guidelines?.voice || brandGuide.brand_voice?.tone || 'professional'}
 
 ## COMPANY INFORMATION
 Name: ${researchData.company_name || 'Brand'}
 Industry: ${researchData.industry || 'General'}
-Products: ${JSON.stringify((researchData.products || []).slice(0, 3))}
-Value Props: ${JSON.stringify(researchData.value_propositions || [])}
+Products: ${JSON.stringify((researchData.products || []).slice(0, 3)).substring(0, 2000)}
+Value Props: ${JSON.stringify(researchData.value_propositions || []).substring(0, 1000)}
 `;
 
   // Add image URLs if available
