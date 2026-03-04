@@ -1,9 +1,10 @@
 import { sql } from '@vercel/postgres';
+import { callClaude } from '../../../lib/claude.js';
 
 /**
  * Design Step - Generate HTML/CSS using brand guide and copy
  * Uses Claude Sonnet with system prompt architecture for premium quality
- * v2.0 - Matches competitor quality with system prompts, 16K tokens, real images
+ * v2.1 - Uses shared Claude utility with retry logic and error handling
  */
 export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }) {
   const { page_type, template_id } = job;
@@ -11,12 +12,6 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
   const brandGuide = stepOutputs.brand?.result?.brand_guide || {};
   const strategy = stepOutputs.strategy?.result?.strategy || {};
   const researchData = stepOutputs.research?.result?.business_research || {};
-
-  const claudeApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-
-  if (!claudeApiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
 
   // Get template if specified
   let templateHtml = null;
@@ -54,35 +49,28 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
     templateCss
   });
 
-  // Use extended thinking for better output quality when generating full pages
-  const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': claudeApiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 32000,
-      system: systemPrompt,
-      messages: [
-        { role: 'user', content: userPrompt }
-      ]
-    })
+  // Use shared Claude utility with retry logic and error handling
+  const response = await callClaude({
+    systemPrompt,
+    userPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 32000,
+    retries: 2
   });
 
-  const claudeData = await claudeResponse.json();
-
   // Check for truncation - if stop_reason is 'max_tokens', the output was cut off
-  const stopReason = claudeData.stop_reason;
-  if (stopReason === 'max_tokens') {
+  if (response.stopReason === 'max_tokens') {
     console.warn('[Design Step] WARNING: Output was truncated at max_tokens limit. Page may be incomplete.');
   }
 
-  console.log('[Design Step] Stop reason:', stopReason, '| Output tokens:', claudeData.usage?.output_tokens);
+  console.log('[Design Step] Stop reason:', response.stopReason, '| Tokens used:', response.tokensUsed);
 
-  let html = claudeData.content?.[0]?.text || '';
+  // Validate we got actual HTML content
+  if (!response.text || response.text.length < 100) {
+    throw new Error(`Design step returned empty or insufficient HTML (${response.text?.length || 0} chars). The Claude API may have returned an error or empty response.`);
+  }
+
+  let html = response.text;
 
   // Clean up the HTML (remove markdown code blocks if present)
   const htmlMatch = html.match(/```html\n([\s\S]*?)\n```/) || html.match(/```\n([\s\S]*?)\n```/);
@@ -127,7 +115,7 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
     html += '\n</body>\n</html>';
   }
 
-  const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
+  const tokensUsed = response.tokensUsed;
 
   return {
     data: {

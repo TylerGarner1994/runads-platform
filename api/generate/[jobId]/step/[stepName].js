@@ -192,20 +192,40 @@ export default async function handler(req, res) {
     // Estimate cost (rough: $3/1M input + $15/1M output for Sonnet)
     const estimatedCost = (totalTokens / 1000000) * 9; // Average of input/output
 
-    // Update job
-    await sql`
-      UPDATE page_generation_jobs
-      SET
-        status = ${isComplete ? 'completed' : 'pending'},
-        current_step = ${nextStep || stepName},
-        step_outputs = ${JSON.stringify(stepOutputs)}::jsonb,
-        tokens_used = ${totalTokens},
-        estimated_cost = ${estimatedCost},
-        page_id = COALESCE(${stepResult.page_id || null}, page_id),
-        completed_at = ${isComplete ? new Date().toISOString() : null},
-        updated_at = ${new Date().toISOString()}
-      WHERE id = ${jobId}
-    `;
+    // Update job — trim step_outputs to prevent oversized JSONB writes
+    const outputsForDb = trimStepOutputsForDb(stepOutputs, stepName);
+    try {
+      await sql`
+        UPDATE page_generation_jobs
+        SET
+          status = ${isComplete ? 'completed' : 'pending'},
+          current_step = ${nextStep || stepName},
+          step_outputs = ${JSON.stringify(outputsForDb)}::jsonb,
+          tokens_used = ${totalTokens},
+          estimated_cost = ${estimatedCost},
+          page_id = COALESCE(${stepResult.page_id || null}, page_id),
+          completed_at = ${isComplete ? new Date().toISOString() : null},
+          updated_at = ${new Date().toISOString()}
+        WHERE id = ${jobId}
+      `;
+    } catch (dbErr) {
+      // If the write fails (e.g. payload too large for Neon WebSocket), retry with aggressively trimmed outputs
+      console.warn(`[Step ${stepName}] DB write failed (${dbErr.message}), retrying with trimmed outputs`);
+      const minimalOutputs = trimStepOutputsForDb(stepOutputs, stepName, true);
+      await sql`
+        UPDATE page_generation_jobs
+        SET
+          status = ${isComplete ? 'completed' : 'pending'},
+          current_step = ${nextStep || stepName},
+          step_outputs = ${JSON.stringify(minimalOutputs)}::jsonb,
+          tokens_used = ${totalTokens},
+          estimated_cost = ${estimatedCost},
+          page_id = COALESCE(${stepResult.page_id || null}, page_id),
+          completed_at = ${isComplete ? new Date().toISOString() : null},
+          updated_at = ${new Date().toISOString()}
+        WHERE id = ${jobId}
+      `;
+    }
 
     return res.status(200).json({
       success: true,
@@ -228,4 +248,64 @@ export default async function handler(req, res) {
       error: error.message
     });
   }
+}
+
+/**
+ * Trim step_outputs to prevent oversized JSONB writes.
+ * After design step, the cumulative data (research + brand + strategy + copy + HTML)
+ * can exceed 100-200KB which can fail on Neon WebSocket connections.
+ *
+ * Strategy: Strip large fields from earlier steps that downstream steps don't need
+ * from the DB copy. The in-memory stepOutputs object remains intact for the current request.
+ */
+function trimStepOutputsForDb(stepOutputs, currentStep, aggressive = false) {
+  const trimmed = JSON.parse(JSON.stringify(stepOutputs));
+
+  // After design or later steps, trim bulky earlier data
+  const LATE_STEPS = ['design', 'factcheck', 'assembly'];
+  if (!LATE_STEPS.includes(currentStep)) return trimmed;
+
+  // Remove scraped images from research (already injected into HTML)
+  if (trimmed.research?.result?.business_research) {
+    delete trimmed.research.result.business_research._scrapedImages;
+    delete trimmed.research.result.business_research.images;
+    delete trimmed.research.result.business_research.raw_html;
+  }
+
+  // In aggressive mode, strip even more
+  if (aggressive) {
+    // Trim research to just key metadata
+    if (trimmed.research?.result?.business_research) {
+      const biz = trimmed.research.result.business_research;
+      trimmed.research.result.business_research = {
+        company_name: biz.company_name,
+        industry: biz.industry,
+        value_propositions: biz.value_propositions,
+        products: (biz.products || []).slice(0, 3)
+      };
+    }
+    // Strip brand/strategy/copy result detail, keep only metadata
+    for (const step of ['brand', 'strategy', 'copy']) {
+      if (trimmed[step]) {
+        trimmed[step] = {
+          tokens_used: trimmed[step].tokens_used,
+          duration_ms: trimmed[step].duration_ms,
+          completed_at: trimmed[step].completed_at,
+          result: { _trimmed: true }
+        };
+      }
+    }
+    // For design, store only metadata (HTML is in landing_pages table after assembly)
+    if (trimmed.design?.result?.html && currentStep !== 'design') {
+      trimmed.design.result = {
+        html_length: trimmed.design.result.html_length,
+        has_form: trimmed.design.result.has_form,
+        has_tracking: trimmed.design.result.has_tracking,
+        images_injected: trimmed.design.result.images_injected,
+        _trimmed: true
+      };
+    }
+  }
+
+  return trimmed;
 }
