@@ -63,7 +63,7 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 32000,
+      max_tokens: 20000,
       system: systemPrompt,
       messages: [
         { role: 'user', content: userPrompt }
