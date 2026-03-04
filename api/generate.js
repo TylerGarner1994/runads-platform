@@ -1,7 +1,9 @@
 // RunAds - AI Landing Page Generator (Vercel Serverless Function)
-// Full 4-phase workflow: Research â Psychology Copy â Expert Review â Output
+// Full 4-phase workflow: Research → Psychology Copy → Expert Review → Output
 
 export const config = { maxDuration: 300 };
+
+import { callClaude as callClaudeShared, parseJsonResponse } from '../lib/claude.js';
 
 // ============================================================
 // EXPERT PANEL DEFINITIONS
@@ -32,19 +34,19 @@ const SCORING_DIMENSIONS = [
 ];
 
 // ============================================================
-// HOOK&RAMEWORKS
+// HOOK FRAMEWORKS
 // ============================================================
 const HOOK_FRAMEWORKS = {
-  'problem-agitate-solution': 'Name the specific pain point â Amplify the emotional cost â Present the solution as the natural resolution',
-  'curiosity-gap': 'Tease an intriguing outcome or discovery without revealing the method â Create an information gap the reader must close',
-  'contrarian': 'Challenge conventional wisdom or common advice â Position against the mainstream â Reveal a counterintuitive truth',
-  'social-proof': 'Lead with crowd behavior or specific numbers â Create FOMO through exclusivity â Show what insiders already know',
-  'direct-benefit': 'State the primary value proposition clearly and directly â Use specific numbers and timeframes â Remove ambiguity',
-  'story-hook': 'Open with a compelling micro-narrative â Create emotional investment â Transition to the offer naturally',
-  'question-hook': 'Ask a provocative question that challenges assumptions â Create cognitive engagement â Guide toward your answer',
-  'statistic-lead': 'Open with a surprising or alarming data point â Create urgency through numbers â Position solution against the statistic',
-  'before-after': 'Paint vivid contrast between current pain and desired outcome â Use specific details â Make the transformation tangible',
-  'fomo': 'Create urgency through genuine scarcity or exclusivity â Use specific limits, dates, or spots â Make the cost of inaction clear'
+  'problem-agitate-solution': 'Name the specific pain point → Amplify the emotional cost → Present the solution as the natural resolution',
+  'curiosity-gap': 'Tease an intriguing outcome or discovery without revealing the method → Create an information gap the reader must close',
+  'contrarian': 'Challenge conventional wisdom or common advice → Position against the mainstream → Reveal a counterintuitive truth',
+  'social-proof': 'Lead with crowd behavior or specific numbers → Create FOMO through exclusivity → Show what insiders already know',
+  'direct-benefit': 'State the primary value proposition clearly and directly → Use specific numbers and timeframes → Remove ambiguity',
+  'story-hook': 'Open with a compelling micro-narrative → Create emotional investment → Transition to the offer naturally',
+  'question-hook': 'Ask a provocative question that challenges assumptions → Create cognitive engagement → Guide toward your answer',
+  'statistic-lead': 'Open with a surprising or alarming data point → Create urgency through numbers → Position solution against the statistic',
+  'before-after': 'Paint vivid contrast between current pain and desired outcome → Use specific details → Make the transformation tangible',
+  'fomo': 'Create urgency through genuine scarcity or exclusivity → Use specific limits, dates, or spots → Make the cost of inaction clear'
 };
 
 // ============================================================
@@ -65,7 +67,7 @@ const PSYCHOLOGY_FRAMEWORK = `
 - Feature comparison: vs. alternatives and vs. status quo (doing nothing)
 - Risk reversal: Money-back guarantees, free trials, "keep everything" offers
 - Specificity: Exact numbers, precise timeframes, detailed deliverables
-- Logic flow: Problem â Agitate â Solution â Proof â CTA
+- Logic flow: Problem → Agitate → Solution → Proof → CTA
 - Objection handling: FAQ sections, preemptive rebuttals inline
 
 ## Neuromarketing Principles
@@ -170,7 +172,7 @@ export default async function handler(req, res) {
       ? `\n## Hook Framework: ${hook_framework}\n${HOOK_FRAMEWORKS[hook_framework]}\n`
       : '';
 
-    const generatePrompt = `You are a world-class landing page creator whnüàocombines direct response copywriting mastery with modern web development skills.
+    const generatePrompt = `You are a world-class landing page creator who combines direct response copywriting mastery with modern web development skills.
 
 Create a complete, production-ready ${page_type} landing page for:
 **Product/Offer:** ${product_url}
@@ -230,8 +232,8 @@ Respond in this exact JSON format:
       "scores": { "Headline Impact": 85, "Value Proposition Clarity": 90, ... },
       "suggestion": "Specific improvement..."
     }
-  C	X\
-vrage_score": 87.5,
+  ],
+  "average_score": 87.5,
   "needs_revision": true,
   "revision_instructions": "Specific changes to make..."
 }`;
@@ -240,10 +242,12 @@ vrage_score": 87.5,
     let reviewData;
     try {
       const reviewText = reviewResponse.content[0].text;
-      const jsonMatch = reviewText.match(/\{'[\s\S]*\}/);
-      reviewData = jsonMatch ? JSON.parse(jsonMatch[0]) : { average_score: 90, needs_revision: false };
+      reviewData = parseJsonResponse(reviewText);
+      if (!reviewData || typeof reviewData.average_score !== 'number') {
+        reviewData = { average_score: null, needs_revision: true, parse_error: true };
+      }
     } catch (e) {
-      reviewData = { average_score: 90, needs_revision: false, experts: [] };
+      reviewData = { average_score: null, needs_revision: true, parse_error: true, experts: [] };
     }
 
     // ============================================================
@@ -330,26 +334,17 @@ Return ONLY the complete modified HTML. Start with <!DOCTYPE html>.`;
 // ============================================================
 
 async function callClaude(apiKey, prompt, model = 'claude-sonnet-4-6') {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 16384,
-      messages: [{ role: 'user', content: prompt }]
-    })
+  // Delegate to shared utility; return legacy-compatible shape
+  const { text, tokensUsed } = await callClaudeShared({
+    systemPrompt: null,
+    userPrompt: prompt,
+    model,
+    maxTokens: 16384
   });
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(`Claude API error: ${JSON.stringify(err)}`);
-  }
-
-  return response.json();
+  return {
+    content: [{ text }],
+    usage: { input_tokens: Math.floor(tokensUsed / 2), output_tokens: Math.ceil(tokensUsed / 2) }
+  };
 }
 
 function cleanHtmlResponse(text) {

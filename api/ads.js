@@ -12,6 +12,7 @@ import {
 import {
   buildAdCopyContext, buildImagePromptContext, buildBrandInjectionString
 } from '../lib/meta-ads-context/index.js';
+import { callClaude as callClaudeShared } from '../lib/claude.js';
 
 const HOOK_FRAMEWORKS = {
   'problem-agitate-solution': 'Name pain → Amplify emotional cost → Present solution',
@@ -658,19 +659,15 @@ Return JSON:
 }
 
 async function callClaude(apiKey, prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
-      messages: [{ role: 'user', content: prompt }]
-    })
+  // Delegate to shared utility; return legacy-compatible shape
+  const { text, tokensUsed } = await callClaudeShared({
+    systemPrompt: null,
+    userPrompt: prompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 8192
   });
-  if (!response.ok) throw new Error(`Claude API: ${response.status}`);
-  return response.json();
+  return {
+    content: [{ text }],
+    usage: { input_tokens: Math.floor(tokensUsed / 2), output_tokens: Math.ceil(tokensUsed / 2) }
+  };
 }

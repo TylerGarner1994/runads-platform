@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
+import { getResearchSkillContext } from '../../../lib/skill-loader.js';
 
 /**
  * Research Step - Deep business research
@@ -80,8 +81,12 @@ export async function runResearchStep({ job, stepOutputs, additionalInput, jobId
     .map(([pageUrl, content]) => `=== PAGE: ${pageUrl} ===\n${content.text}`)
     .join('\n\n');
 
+  // Load research skill context (truncated to stay within Gemini token limits)
+  const researchSkillContext = getResearchSkillContext().substring(0, 5000);
+
   const geminiPrompt = `Analyze this business website content and extract structured information.
 
+${researchSkillContext ? `## RESEARCH METHODOLOGY\n${researchSkillContext}\n` : ''}
 WEBSITE CONTENT:
 ${combinedText.substring(0, 50000)}
 

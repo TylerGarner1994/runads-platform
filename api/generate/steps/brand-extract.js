@@ -1,5 +1,7 @@
 import { sql } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
+import { callClaude } from '../../../lib/claude.js';
+import { getBrandSkillContext } from '../../../lib/skill-loader.js';
 
 /**
  * Brand Extraction Step - Extract brand styles from website
@@ -14,11 +16,8 @@ export async function runBrandStep({ job, stepOutputs, additionalInput, jobId })
   }
 
   const url = website_url || additionalInput.url || stepOutputs?._config?.website_url;
-  const claudeApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-
-  if (!claudeApiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured. Available env vars: ' + Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY') || k.includes('CLAUDE') || k.includes('ANTHROP')).join(', '));
-  }
+  // Load brand extraction skill context
+  const skillContext = getBrandSkillContext();
 
   // Step 1: Fetch website and extract CSS
   let cssData = {};
@@ -129,32 +128,17 @@ Be PRECISE with hex codes - extract them from the actual CSS when possible.
 If you can't determine a value, use industry-standard defaults.
 Return ONLY valid JSON.`;
 
-  const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': claudeApiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      messages: [
-        { role: 'user', content: brandPrompt }
-      ]
-    })
+  const brandSystemPrompt = `You are a brand identity extraction specialist. Analyze websites to create precise brand style guides.${skillContext}`;
+
+  const { tokensUsed, json: parsedJson } = await callClaude({
+    systemPrompt: brandSystemPrompt,
+    userPrompt: brandPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 2000
   });
 
-  const claudeData = await claudeResponse.json();
-  const responseText = claudeData.content?.[0]?.text || '';
-
-  // Parse brand guide
-  let brandGuide;
-  try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    brandGuide = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-  } catch (parseError) {
-    console.error('Error parsing brand guide:', parseError);
+  let brandGuide = parsedJson;
+  if (!brandGuide || !brandGuide.colors) {
     brandGuide = getDefaultBrandGuide();
   }
 
@@ -223,8 +207,6 @@ Return ONLY valid JSON.`;
       `;
     }
   }
-
-  const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
 
   return {
     data: {

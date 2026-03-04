@@ -5,27 +5,16 @@ export const config = { maxDuration: 300 };
 
 import { getPageTemplate, generateBrandCSS, populateTemplate } from '../lib/design-system.js';
 import { getPage, updatePage } from '../lib/storage.js';
+import { callClaude as callClaudeShared } from '../lib/claude.js';
 
 async function callClaude(systemPrompt, userPrompt) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }]
-    })
+  const { text, tokensUsed } = await callClaudeShared({
+    systemPrompt,
+    userPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 8192
   });
-  if (!resp.ok) throw new Error(`Claude API: ${resp.status}`);
-  const data = await resp.json();
-  return { text: data.content?.[0]?.text || '', tokensUsed: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0) };
+  return { text, tokensUsed };
 }
 
 // ============================================================

@@ -1,4 +1,6 @@
 import { sql } from '@vercel/postgres';
+import { callClaude } from '../../../lib/claude.js';
+import { getCopySkillContext } from '../../../lib/skill-loader.js';
 
 /**
  * Copy Step - Generate all page copy based on strategy
@@ -10,12 +12,6 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
   const strategy = stepOutputs.strategy?.result?.strategy || {};
   const researchData = stepOutputs.research?.result?.business_research || {};
   const brandGuide = stepOutputs.brand?.result?.brand_guide || {};
-
-  const claudeApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-
-  if (!claudeApiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
 
   // Get verified claims for fact-checking
   let verifiedClaims = [];
@@ -31,7 +27,10 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
   }
 
   // Build a rich copy prompt with system + user prompt architecture
-  const systemPrompt = getCopySystemPrompt(page_type);
+  // Append skill context (legendary-sales-letter, copywriting masters, etc.) to system prompt
+  const baseSystemPrompt = getCopySystemPrompt(page_type);
+  const skillContext = getCopySkillContext(page_type);
+  const systemPrompt = baseSystemPrompt + skillContext;
 
   const userPrompt = buildCopyUserPrompt({
     page_type,
@@ -41,37 +40,14 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
     verifiedClaims
   });
 
-  const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': claudeApiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      system: systemPrompt,
-      messages: [
-        { role: 'user', content: userPrompt }
-      ]
-    })
+  const { text: responseText, tokensUsed, json: parsedJson } = await callClaude({
+    systemPrompt,
+    userPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 8000
   });
 
-  const claudeData = await claudeResponse.json();
-  const responseText = claudeData.content?.[0]?.text || '';
-
-  // Parse copy
-  let copy;
-  try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    copy = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-  } catch (parseError) {
-    console.error('Error parsing copy:', parseError);
-    copy = { raw_response: responseText };
-  }
-
-  const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
+  const copy = parsedJson || { raw_response: responseText };
 
   // Count unverified claims
   const unverifiedCount = copy.unverified_claims?.length || 0;

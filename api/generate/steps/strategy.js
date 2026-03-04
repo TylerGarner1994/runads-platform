@@ -1,4 +1,6 @@
 import { sql } from '@vercel/postgres';
+import { callClaude } from '../../../lib/claude.js';
+import { getStrategySkillContext } from '../../../lib/skill-loader.js';
 
 /**
  * Strategy Step - Create page outline and messaging strategy
@@ -9,11 +11,8 @@ export async function runStrategyStep({ job, stepOutputs, additionalInput, jobId
   const researchData = stepOutputs.research?.result?.business_research || {};
   const brandGuide = stepOutputs.brand?.result?.brand_guide || {};
 
-  const claudeApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-
-  if (!claudeApiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
+  // Load skill context for richer strategy output
+  const skillContext = getStrategySkillContext();
 
   // Get template structure if specified
   let templateStructure = null;
@@ -199,36 +198,16 @@ Create a comprehensive strategy document in this JSON format:
 
 Return ONLY valid JSON.`;
 
-  const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': claudeApiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 5000,
-      messages: [
-        { role: 'user', content: strategyPrompt }
-      ]
-    })
+  const systemPrompt = `You are a world-class direct response strategist. Apply the frameworks below to create comprehensive page strategies.${skillContext}`;
+
+  const { text: responseText, tokensUsed, json: parsedJson } = await callClaude({
+    systemPrompt,
+    userPrompt: strategyPrompt,
+    model: 'claude-sonnet-4-6',
+    maxTokens: 5000
   });
 
-  const claudeData = await claudeResponse.json();
-  const responseText = claudeData.content?.[0]?.text || '';
-
-  // Parse strategy
-  let strategy;
-  try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    strategy = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-  } catch (parseError) {
-    console.error('Error parsing strategy:', parseError);
-    strategy = { raw_response: responseText };
-  }
-
-  const tokensUsed = (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0);
+  const strategy = parsedJson || { raw_response: responseText };
 
   return {
     data: {

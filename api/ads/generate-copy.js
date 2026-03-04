@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { verifyAuth } from '../../lib/auth.js';
 import db from '../../lib/database.js';
+import { callClaude } from '../../lib/claude.js';
+import { buildAdCopyContext } from '../../lib/meta-ads-context/index.js';
+import { getAdGenSkillContext } from '../../lib/skill-loader.js';
 
 /**
  * Meta Ad Copy Generator
@@ -60,13 +63,21 @@ export default async function handler(req, res) {
     // Get verified claims for the client
     const verifiedClaims = await db.getVerifiedClaims(client_id, 10);
 
-    const claudeApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-    if (!claudeApiKey) {
-      return res.status(500).json({
-        success: false,
-        error: 'ANTHROPIC_API_KEY not configured'
-      });
-    }
+    // Build rich context from meta-ads-context library + skill-loader
+    const adCopyContext = buildAdCopyContext({
+      industry: client.industry || businessResearch.industry,
+      awarenessLevel: 'problem_aware',
+      platform: 'facebook',
+      tone,
+      hookFramework: hook_angle,
+      trafficTemp: 'cold'
+    });
+    const adSkillContext = getAdGenSkillContext();
+
+    const systemPrompt = `You are an elite Meta ads copywriter who has generated over $100M in revenue for clients. You write ads that stop the scroll, create emotional connection, and drive action.
+
+${adCopyContext}
+${adSkillContext}`;
 
     const prompt = buildAdCopyPrompt({
       client,
@@ -83,34 +94,14 @@ export default async function handler(req, res) {
       customInstructions: custom_instructions
     });
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': claudeApiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        messages: [
-          { role: 'user', content: prompt }
-        ]
-      })
+    const { text: responseText, tokensUsed: totalTokens, json: parsedJson } = await callClaude({
+      systemPrompt,
+      userPrompt: prompt,
+      model: 'claude-sonnet-4-6',
+      maxTokens: 4000
     });
 
-    const claudeData = await claudeResponse.json();
-    const responseText = claudeData.content?.[0]?.text || '';
-
-    // Parse the JSON response
-    let adVariations;
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      adVariations = jsonMatch ? JSON.parse(jsonMatch[0]) : { variations: [] };
-    } catch (parseError) {
-      console.error('Error parsing Claude response:', parseError);
-      adVariations = { raw_response: responseText };
-    }
+    const adVariations = parsedJson || { raw_response: responseText };
 
     // Store generated copies in database
     const savedCopies = [];
@@ -135,7 +126,7 @@ export default async function handler(req, res) {
             offer_details: offer_details || '',
             generation_prompt: prompt.substring(0, 2000),
             model_used: 'claude-sonnet-4',
-            tokens_used: (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0)
+            tokens_used: totalTokens
           });
           savedCopies.push({
             id: copyId,
@@ -155,7 +146,7 @@ export default async function handler(req, res) {
       success: true,
       variations: savedCopies.length > 0 ? savedCopies : adVariations.variations || [],
       strategy_notes: adVariations.strategy_notes || null,
-      tokens_used: (claudeData.usage?.input_tokens || 0) + (claudeData.usage?.output_tokens || 0)
+      tokens_used: totalTokens
     });
 
   } catch (error) {
@@ -200,40 +191,7 @@ function buildAdCopyPrompt({
     authoritative: 'Expert positioning. Use data, credentials, and social proof. Confident but not arrogant.'
   };
 
-  const hookFrameworks = `
-PROVEN HOOK FRAMEWORKS (use these as inspiration):
-1. Problem-Agitate-Solution: State problem -> Make it feel urgent -> Offer solution
-2. Curiosity Gap: Open a loop that can only be closed by clicking
-3. Contrarian: Challenge conventional wisdom ("Stop doing X...")
-4. Social Proof: Lead with results, testimonials, or numbers
-5. Direct Benefit: Lead with the #1 benefit they care about
-6. Story Hook: Start mid-action or with a relatable scenario
-7. Question Hook: Ask a question they can't help but answer
-8. "What if" Hook: Paint a picture of their ideal outcome
-9. Fear of Missing Out: What they'll lose by not acting
-10. Pattern Interrupt: Something unexpected that stops the scroll
-`;
-
-  const metaSpecs = `
-META ADS CHARACTER LIMITS:
-- Primary Text: 125 chars visible (up to 500 before "...See More")
-- Headline: 40 chars recommended (27 chars visible on mobile)
-- Description: 30 chars recommended (hidden on some placements)
-
-BEST PRACTICES:
-- Front-load the hook in first 125 characters
-- Use line breaks to improve readability
-- Emojis can increase engagement but use sparingly (1-2 max)
-- Lead with benefit, not feature
-- Include social proof when available
-- Match ad copy tone to landing page
-- Test different hook angles
-- NEVER use em dashes (--) - they are a telltale sign of AI-generated content
-`;
-
-  return `You are an elite Meta ads copywriter who has generated over $100M in revenue for clients. You write ads that stop the scroll, create emotional connection, and drive action.
-
-BUSINESS CONTEXT:
+  return `BUSINESS CONTEXT:
 Company: ${businessResearch.company_name || client.name}
 Industry: ${client.industry || businessResearch.industry || 'Unknown'}
 Value Propositions: ${JSON.stringify(businessResearch.value_propositions || [])}
@@ -244,10 +202,6 @@ Unique Differentiators: ${JSON.stringify(businessResearch.unique_differentiators
 
 VERIFIED CLAIMS (use these for credibility):
 ${verifiedClaims.map(c => `- [${c.claim_type}] ${c.claim_text}`).join('\n') || 'No verified claims available'}
-
-${metaSpecs}
-
-${includeHooks ? hookFrameworks : ''}
 
 GENERATION REQUIREMENTS:
 - Ad Type: ${adType}

@@ -12,52 +12,17 @@ import { getPageTemplate, generateBrandCSS, populateTemplate, getComponent, getP
 import { savePage as savePageToStorage, getClient, updateClient, saveVerifiedClaims, getVerifiedClaims } from '../lib/storage.js';
 import { deployPage as deployToGitHubPages, getPagesUrl } from '../lib/github.js';
 import { getResearchSkillContext, getStrategySkillContext, getCopySkillContext, getBrandSkillContext } from '../lib/skill-loader.js';
+import { callClaude as callClaudeShared, parseJsonResponse } from '../lib/claude.js';
 
 // ============================================================
-// ANTHROPIC API HELPER
+// ANTHROPIC API HELPER (wrapper for backward compatibility)
 // ============================================================
 async function callClaude(systemPrompt, userPrompt, model = 'claude-sonnet-4-6', maxTokens = 8192) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
-
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      ...(systemPrompt ? { system: systemPrompt } : {}),
-      messages: [{ role: 'user', content: userPrompt }]
-    })
-  });
-
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Claude API error: ${resp.status} - ${err}`);
-  }
-
-  const data = await resp.json();
-  const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
-  const text = data.content?.[0]?.text || '';
-  const stopReason = data.stop_reason || 'end_turn';
-  return { text, tokensUsed, stopReason };
+  return callClaudeShared({ systemPrompt, userPrompt, model, maxTokens });
 }
 
-// Try to parse JSON from Claude's response (handles markdown code blocks)
 function parseJSON(text) {
-  // Try direct parse first
-  try { return JSON.parse(text); } catch (e) {}
-  // Try extracting from code block
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (match) {
-    try { return JSON.parse(match[1].trim()); } catch (e) {}
-  }
-  // Return as-is wrapped in object
-  return { raw: text };
+  return parseJsonResponse(text) || { raw: text };
 }
 
 // ============================================================
@@ -511,7 +476,12 @@ Return JSON:
   "tone_guidelines": "string"
 }`;
 
-  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 3000);
+  const strategySkillContext = getStrategySkillContext();
+  const strategySystemPrompt = strategySkillContext
+    ? `You are a world-class direct response strategist. Apply the frameworks below to create comprehensive page strategies.${strategySkillContext}`
+    : null;
+
+  const { text, tokensUsed } = await callClaude(strategySystemPrompt, userPrompt, 'claude-sonnet-4-6', 3000);
   const strategyData = parseJSON(text);
   return { data: strategyData, tokensUsed };
 }
@@ -622,7 +592,12 @@ Return JSON:
   "unverified_claims": ["any claims that need verification"]
 }`;
 
-  const { text, tokensUsed } = await callClaude(null, userPrompt, 'claude-sonnet-4-6', 8000);
+  const copySkillContext = getCopySkillContext(pageType);
+  const copySystemPrompt = copySkillContext
+    ? `You are an elite direct-response copywriter synthesizing the proven frameworks of history's greatest copywriters.${copySkillContext}`
+    : null;
+
+  const { text, tokensUsed } = await callClaude(copySystemPrompt, userPrompt, 'claude-sonnet-4-6', 8000);
   const copyData = parseJSON(text);
   return { data: copyData, tokensUsed };
 }

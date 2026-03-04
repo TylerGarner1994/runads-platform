@@ -8,6 +8,7 @@
 export const config = { maxDuration: 300 };
 
 import { getPageBySlug, getPage, updatePage } from '../lib/storage.js';
+import { callClaude } from '../lib/claude.js';
 
 // ─── Strip editor artifacts from HTML ───
 function cleanEditorArtifacts(html) {
@@ -145,10 +146,6 @@ export default async function handler(req, res) {
   }
 
   // ─── Use AI with diff-based approach (much cheaper than full regen) ───
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Claude API key not configured' });
-  }
 
   // Truncate HTML context if too large
   let htmlContext = currentHtml;
@@ -159,18 +156,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Ask Claude for search/replace pairs instead of full HTML
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
-        system: `You are an expert web developer. You edit HTML landing pages by returning precise search-and-replace operations.
+    const chatSystemPrompt = `You are an expert web developer. You edit HTML landing pages by returning precise search-and-replace operations.
 
 RESPOND WITH ONLY A JSON OBJECT in this exact format:
 {
@@ -193,36 +179,30 @@ RULES:
 7. For link changes, include the full <a> tag in search/replace
 8. For text changes, include the parent element
 9. For style changes, include enough context to uniquely identify the element
-10. If the change requires adding entirely new sections, use a search string that identifies WHERE to insert and include the surrounding context plus the new content in replace`,
-        messages: [{
-          role: 'user',
-          content: `Here is the current HTML:\n\n${htmlContext}\n\nUser request: ${message}`
-        }]
-      })
+10. If the change requires adding entirely new sections, use a search string that identifies WHERE to insert and include the surrounding context plus the new content in replace`;
+
+    const { text: responseText } = await callClaude({
+      systemPrompt: chatSystemPrompt,
+      userPrompt: `Here is the current HTML:\n\n${htmlContext}\n\nUser request: ${message}`,
+      model: 'claude-haiku-4-5-20251001',
+      maxTokens: 4096
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(500).json({ error: 'Claude API error', details: errText });
-    }
-
-    const data = await response.json();
-    let responseText = data.content[0].text;
-
     // Clean up if Claude wrapped in code blocks
-    if (responseText.startsWith('```json')) {
-      responseText = responseText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    } else if (responseText.startsWith('```')) {
-      responseText = responseText.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    let cleanedText = responseText;
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\n?/, '').replace(/\n?```$/, '');
     }
-    responseText = responseText.trim();
+    cleanedText = cleanedText.trim();
 
     let modifiedHtml = currentHtml;
     let changesApplied = 0;
     let summary = '';
 
     try {
-      const diffResult = JSON.parse(responseText);
+      const diffResult = JSON.parse(cleanedText);
       summary = diffResult.summary || 'Changes applied';
 
       if (diffResult.changes && Array.isArray(diffResult.changes)) {
