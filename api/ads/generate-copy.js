@@ -5,6 +5,8 @@ import { callClaudeWithFallback } from '../../lib/claude.js';
 import { buildAdCopyContext } from '../../lib/meta-ads-context/index.js';
 import { getAdGenSkillContext } from '../../lib/skill-loader.js';
 
+export const config = { maxDuration: 300 };
+
 /**
  * Meta Ad Copy Generator
  * Generates high-converting ad copy using client research and proven frameworks

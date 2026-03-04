@@ -76,10 +76,19 @@ export async function runResearchStep({ job, stepOutputs, additionalInput, jobId
     }
   }
 
+  // Guard: If no content was scraped, fail early with a clear error
+  if (Object.keys(scrapedContent).length === 0) {
+    throw new Error(`Could not scrape any content from ${url}. The website may be blocking automated access or is unreachable.`);
+  }
+
   // Step 2: Send to Gemini for structured extraction
   const combinedText = Object.entries(scrapedContent)
     .map(([pageUrl, content]) => `=== PAGE: ${pageUrl} ===\n${content.text}`)
     .join('\n\n');
+
+  if (!combinedText || combinedText.trim().length < 100) {
+    throw new Error(`Scraped content from ${url} is too short (${combinedText.trim().length} chars). The website may be JavaScript-rendered or blocking automated access.`);
+  }
 
   // Load research skill context (truncated to stay within Gemini token limits)
   const researchSkillContext = getResearchSkillContext().substring(0, 5000);
@@ -152,8 +161,17 @@ Return ONLY valid JSON.`;
     }
   );
 
+  if (!geminiResponse.ok) {
+    const errorBody = await geminiResponse.text();
+    throw new Error(`Gemini API error (HTTP ${geminiResponse.status}): ${errorBody.substring(0, 200)}`);
+  }
+
   const geminiData = await geminiResponse.json();
   const extractedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  if (!extractedText) {
+    throw new Error('Gemini returned empty response. The model may have been unable to process the content.');
+  }
 
   // Parse the JSON response
   let businessResearch;
@@ -250,12 +268,22 @@ Return ONLY valid JSON.`;
     }
   }
 
+  // Collect all scraped images for use by the design step
+  const allImages = Object.values(scrapedContent)
+    .flatMap(content => content.images || []);
+  const uniqueImages = [...new Set(allImages)].slice(0, 20);
+
+  // Attach images to the research output so design step can access them
+  businessResearch.images = uniqueImages;
+  businessResearch._scrapedImages = uniqueImages;
+
   return {
     data: {
       business_research: businessResearch,
       pages_scraped: Object.keys(scrapedContent).length,
       testimonials_found: businessResearch.testimonials?.length || 0,
-      statistics_found: businessResearch.statistics?.length || 0
+      statistics_found: businessResearch.statistics?.length || 0,
+      images_found: uniqueImages.length
     },
     tokens_used: geminiData.usageMetadata?.totalTokenCount || 2000
   };
@@ -281,6 +309,37 @@ async function fetchAndExtractContent(url) {
 
     const html = await response.text();
 
+    // Extract image URLs before stripping HTML
+    const images = [];
+    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*/gi;
+    let imgMatch;
+    while ((imgMatch = imgRegex.exec(html)) !== null) {
+      const src = imgMatch[0];
+      const srcUrl = imgMatch[1];
+
+      // Skip tiny icons, tracking pixels, SVGs, and base64 images
+      if (srcUrl.endsWith('.svg') || srcUrl.startsWith('data:') ||
+          srcUrl.includes('pixel') || srcUrl.includes('tracker') ||
+          srcUrl.includes('spacer') || srcUrl.includes('1x1')) {
+        continue;
+      }
+
+      // Skip images with explicit tiny dimensions
+      const widthMatch = src.match(/width=["']?(\d+)/i);
+      const heightMatch = src.match(/height=["']?(\d+)/i);
+      if ((widthMatch && parseInt(widthMatch[1]) < 50) ||
+          (heightMatch && parseInt(heightMatch[1]) < 50)) {
+        continue;
+      }
+
+      try {
+        const fullUrl = new URL(srcUrl, url).toString();
+        images.push(fullUrl);
+      } catch {
+        // Invalid URL, skip
+      }
+    }
+
     // Extract text content
     const text = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -292,7 +351,7 @@ async function fetchAndExtractContent(url) {
       .trim()
       .substring(0, 30000);
 
-    return { html, text };
+    return { html, text, images: [...new Set(images)].slice(0, 20) };
   } catch (error) {
     clearTimeout(timeoutId);
     throw error;

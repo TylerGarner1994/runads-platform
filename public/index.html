@@ -5960,6 +5960,7 @@
     async function loadClients() {
       try {
         const res = await fetch('/api/clients');
+        if (!res.ok) throw new Error(`Failed to load clients (HTTP ${res.status})`);
         const result = await res.json();
         if (result.success) {
           clients = result.clients || [];
@@ -5973,6 +5974,7 @@
     async function loadClientsPage() {
       try {
         const res = await fetch('/api/clients');
+        if (!res.ok) throw new Error(`Failed to load clients (HTTP ${res.status})`);
         const result = await res.json();
         if (result.success) {
           clients = result.clients || [];
@@ -6066,6 +6068,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, website_url: websiteUrl || null })
         });
+        if (!res.ok) throw new Error(`Failed to create client (HTTP ${res.status})`);
         const result = await res.json();
         if (result.success) {
           alert('Client created! You can now generate pages for this client.');
@@ -6174,6 +6177,7 @@
     async function loadRecentClients() {
       try {
         const res = await fetch('/api/clients');
+        if (!res.ok) throw new Error(`Failed to load clients (HTTP ${res.status})`);
         const result = await res.json();
 
         const container = document.getElementById('recentClientsContainer');
@@ -6217,6 +6221,7 @@
     async function loadAllPages() {
       try {
         const res = await fetch('/api/pages');
+        if (!res.ok) throw new Error(`Failed to load pages (HTTP ${res.status})`);
         const pages = await res.json();
 
         const container = document.getElementById('allPagesContainer');
@@ -6304,6 +6309,7 @@
 
       try {
         const res = await fetch(`/api/clients/${clientId}`);
+        if (!res.ok) throw new Error(`Failed to load client (HTTP ${res.status})`);
         const result = await res.json();
 
         if (!result.success) {
@@ -6541,6 +6547,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(brandData)
         });
+        if (!res.ok) throw new Error(`Failed to save brand guide (HTTP ${res.status})`);
 
         const result = await res.json();
         if (result.success) {
@@ -6618,6 +6625,7 @@
             business_research: research
           })
         });
+        if (!res.ok) throw new Error(`Failed to save research (HTTP ${res.status})`);
 
         const result = await res.json();
         if (result.success) {
@@ -6705,6 +6713,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ topic, context })
         });
+        if (!res.ok) throw new Error(`Research failed (HTTP ${res.status})`);
         const data = await res.json();
 
         if (!data.success) throw new Error(data.error || 'Research failed');
@@ -6821,6 +6830,7 @@
         const res = await fetch(`/api/clients/${currentClientId}/research`, {
           method: 'POST'
         });
+        if (!res.ok) throw new Error(`Research failed (HTTP ${res.status})`);
 
         const result = await res.json();
         if (result.success) {
@@ -6897,6 +6907,7 @@
     async function loadPages() {
       try {
         const res = await fetch('/api/pages');
+        if (!res.ok) throw new Error(`Failed to load pages (HTTP ${res.status})`);
         pages = await res.json();
         renderPages();
         updateStats();
@@ -7398,6 +7409,7 @@
     async function loadAnalytics(id) {
       try {
         const res = await fetch(`/api/pages/${id}/analytics`);
+        if (!res.ok) throw new Error(`Failed to load analytics (HTTP ${res.status})`);
         const data = await res.json();
 
         document.getElementById('aViews').textContent = formatNumber(data.summary.total_views);
@@ -7416,6 +7428,7 @@
     async function loadLeads(id) {
       try {
         const res = await fetch(`/api/pages/${id}/leads`);
+        if (!res.ok) throw new Error(`Failed to load leads (HTTP ${res.status})`);
         const leads = await res.json();
 
         document.getElementById('leadsTable').innerHTML = leads.length > 0
@@ -7429,12 +7442,23 @@
     async function loadABResults(id) {
       try {
         const res = await fetch(`/api/pages/${id}/ab-results`);
+        if (!res.ok) {
+          document.getElementById('abtestResults').innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 2rem;">No A/B test data available yet. Run an A/B test to see results here.</p>';
+          return;
+        }
         const data = await res.json();
-        const allVariants = [data.control, ...(data.variants || [])];
+        if (!data || !data.control) {
+          document.getElementById('abtestResults').innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 2rem;">No A/B test data available yet. Run an A/B test to see results here.</p>';
+          return;
+        }
+        const allVariants = [data.control, ...(data.variants || [])].filter(Boolean);
 
-        document.getElementById('abtestResults').innerHTML = `<table class="leads-table"><thead><tr><th>Variant</th><th>Views</th><th>Conversions</th><th>Rate</th></tr></thead><tbody>${allVariants.map(v => `<tr><td>${escapeHtml(v.name || v.variant_name)}</td><td class="metric">${formatNumber(v.views)}</td><td class="metric">${formatNumber(v.conversions)}</td><td class="metric">${v.conversion_rate}%</td></tr>`).join('')}</tbody></table>`;
+        document.getElementById('abtestResults').innerHTML = allVariants.length > 0
+          ? `<table class="leads-table"><thead><tr><th>Variant</th><th>Views</th><th>Conversions</th><th>Rate</th></tr></thead><tbody>${allVariants.map(v => `<tr><td>${escapeHtml(v.name || v.variant_name || 'Control')}</td><td class="metric">${formatNumber(v.views || 0)}</td><td class="metric">${formatNumber(v.conversions || 0)}</td><td class="metric">${v.conversion_rate || 0}%</td></tr>`).join('')}</tbody></table>`
+          : '<p style="color: var(--text-light); text-align: center; padding: 2rem;">No A/B test data available yet.</p>';
       } catch (error) {
         console.error('Failed to load A/B results:', error);
+        document.getElementById('abtestResults').innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 2rem;">No A/B test data available yet. Run an A/B test to see results here.</p>';
       }
     }
 

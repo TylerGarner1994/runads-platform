@@ -110,7 +110,7 @@ export async function runAssemblyStep({ job, stepOutputs, additionalInput, jobId
 // RunAds Platform Tracking
 (function() {
   var pageId = '{{PAGE_ID}}';
-  var sessionId = Math.random().toString(36).substring(7);
+  var sessionId = crypto.randomUUID();
 
   // Track page view
   fetch('https://runads-platform.vercel.app/api/track', {

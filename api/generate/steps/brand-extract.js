@@ -23,17 +23,23 @@ export async function runBrandStep({ job, stepOutputs, additionalInput, jobId })
   let cssData = {};
   let pageHtml = '';
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   try {
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; RunAdsBot/1.0)'
       }
     });
+    clearTimeout(timeoutId);
     pageHtml = await response.text();
 
     // Extract inline styles and CSS variables
     cssData = extractCSSFromHtml(pageHtml);
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error('Error fetching website for brand extraction:', error.message);
   }
 

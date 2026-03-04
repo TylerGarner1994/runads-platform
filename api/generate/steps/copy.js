@@ -347,8 +347,8 @@ Company: ${researchData.company_name || 'Unknown'}
 Industry: ${researchData.industry || 'General'}
 Products: ${JSON.stringify(researchData.products?.slice(0, 3) || [])}
 Value Props: ${JSON.stringify(researchData.value_propositions || [])}
-Key Features: ${JSON.stringify(researchData.key_features || [])}
-Unique Selling Points: ${JSON.stringify(researchData.unique_selling_points || researchData.differentiators || [])}
+Key Features: ${JSON.stringify(researchData.products?.[0]?.key_features || [])}
+Unique Differentiators: ${JSON.stringify(researchData.unique_differentiators || [])}
 
 ## BRAND VOICE
 Tone: ${strategy.tone_guidelines?.voice || brandGuide.brand_voice?.tone || 'professional'}

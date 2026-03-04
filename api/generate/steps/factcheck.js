@@ -206,17 +206,35 @@ function verifyClaim(claim, verifiedClaims, sourceContent) {
       };
     }
 
-    // Fuzzy number match (e.g., "90%" matches "90% satisfaction")
+    // Fuzzy number match with context overlap
+    // Requires matching numbers AND overlapping context words to avoid false positives
+    // (e.g., "5 minutes" should NOT match "5 stars" just because both contain "5")
     const claimNumbers = claimLower.match(/\d+(?:\.\d+)?/g);
     const verifiedNumbers = verifiedLower.match(/\d+(?:\.\d+)?/g);
 
     if (claimNumbers && verifiedNumbers) {
       const matchingNumbers = claimNumbers.filter(n => verifiedNumbers.includes(n));
       if (matchingNumbers.length > 0 && claim.type === verified.claim_type) {
-        return {
-          status: 'verified',
-          source: verified.source_url || 'verified claims database'
+        // Extract context words around each matching number for both claim and verified text
+        const getContextWords = (text, num) => {
+          const regex = new RegExp(`(\\S+\\s+)?\\S*${num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\S*(?:\\s+\\S+)?`, 'i');
+          const match = text.match(regex);
+          if (!match) return [];
+          return match[0].toLowerCase().split(/\s+/).filter(w => w !== num && w.length > 2);
         };
+
+        const hasContextOverlap = matchingNumbers.some(num => {
+          const claimContext = getContextWords(claimLower, num);
+          const verifiedContext = getContextWords(verifiedLower, num);
+          return claimContext.some(w => verifiedContext.includes(w));
+        });
+
+        if (hasContextOverlap) {
+          return {
+            status: 'verified',
+            source: verified.source_url || 'verified claims database'
+          };
+        }
       }
     }
   }
@@ -233,16 +251,23 @@ function verifyClaim(claim, verifiedClaims, sourceContent) {
       };
     }
 
-    // Check for numbers in source
+    // Check for numbers in source with adjacent word context
+    // Requires the number AND at least 3 adjacent words from the claim to appear in the source
+    // to avoid false positives (e.g., "1" appears in almost any text)
     const claimNumbers = claimLower.match(/\d+(?:\.\d+)?/g);
     if (claimNumbers) {
+      const claimWords = claimLower.split(/\s+/).filter(w => w.length > 2);
       for (const num of claimNumbers) {
         if (sourceText.includes(num)) {
-          return {
-            status: 'found_in_source',
-            source: 'scraped website content',
-            confidence: 0.6
-          };
+          // Count how many adjacent words from the claim also appear near the number in source
+          const adjacentWordsInSource = claimWords.filter(w => w !== num && sourceText.includes(w));
+          if (adjacentWordsInSource.length >= 3) {
+            return {
+              status: 'found_in_source',
+              source: 'scraped website content',
+              confidence: 0.6
+            };
+          }
         }
       }
     }

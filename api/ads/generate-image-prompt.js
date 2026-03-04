@@ -724,6 +724,8 @@ const AD_STYLES = {
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export const config = { maxDuration: 300 };
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');

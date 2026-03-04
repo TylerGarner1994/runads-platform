@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   try {
     // Fetch the landing page from database
     const { rows } = await sql`
-      SELECT * FROM landing_pages WHERE slug = ${slug} AND status = 'live'
+      SELECT * FROM landing_pages WHERE slug = ${slug} AND status IN ('live', 'draft')
     `;
 
     if (rows.length === 0) {
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
     // Track page view
     try {
-      const sessionId = req.cookies?.session_id || Math.random().toString(36).substring(2);
+      const sessionId = req.cookies?.session_id || crypto.randomUUID();
       const userAgent = req.headers['user-agent'] || '';
       const referrer = req.headers['referer'] || '';
       const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || '';
@@ -122,11 +122,14 @@ export default async function handler(req, res) {
     html = html.replace(/\s*style="outline:\s*(?:none|2px solid[^"]*);?\s*(?:outline-offset:\s*2px;?)?\s*"/gi, '');
 
     // Inject meta tags if page has them and they're not in HTML
+    // Escape values to prevent XSS via meta tag injection
+    const escapeHtml = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
     if (page.meta_title && !html.includes('<title>')) {
-      html = html.replace('<head>', `<head>\n  <title>${page.meta_title}</title>`);
+      html = html.replace('<head>', `<head>\n  <title>${escapeHtml(page.meta_title)}</title>`);
     }
     if (page.meta_description && !html.includes('meta name="description"')) {
-      html = html.replace('<head>', `<head>\n  <meta name="description" content="${page.meta_description}">`);
+      html = html.replace('<head>', `<head>\n  <meta name="description" content="${escapeHtml(page.meta_description)}">`);
     }
 
     return res.status(200).send(html);
