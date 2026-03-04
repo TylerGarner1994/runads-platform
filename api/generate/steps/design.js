@@ -560,26 +560,28 @@ ${baseDesignSystem}
 // USER PROMPT BUILDER
 // ============================================================
 function buildUserPrompt({ page_type, copy, brandGuide, strategy, researchData, allImages, productImages, fontPairing, templateHtml, templateCss }) {
-  // Cap copy data to prevent oversized input (skill-enriched copy can be 10K+ tokens)
-  const copyStr = JSON.stringify(copy, null, 2);
-  const cappedCopy = copyStr.length > 12000 ? copyStr.substring(0, 12000) + '\n...(truncated)' : copyStr;
+  // Strip metadata the design step doesn't need, use compact JSON to save tokens
+  const designCopy = { ...copy };
+  delete designCopy.unverified_claims;
+  delete designCopy.needs_fact_check;
+  const copyStr = JSON.stringify(designCopy);
 
   let prompt = `Create a stunning, conversion-optimized ${page_type} landing page using the content below.
 
-## PAGE COPY (Use this exact copy in the page)
-${cappedCopy}
+## PAGE COPY (Use this exact copy in the page — do NOT rewrite or invent new copy)
+${copyStr}
 
 ## STRATEGY CONTEXT
 Page goal: ${strategy.page_goal || 'conversion'}
-Target persona: ${JSON.stringify(strategy.target_persona || {}).substring(0, 1500)}
-CTA Strategy: ${JSON.stringify(strategy.cta_strategy || {}).substring(0, 1000)}
+Target persona: ${JSON.stringify(strategy.target_persona || {})}
+CTA Strategy: ${JSON.stringify(strategy.cta_strategy || {})}
 Tone: ${strategy.tone_guidelines?.voice || brandGuide.brand_voice?.tone || 'professional'}
 
 ## COMPANY INFORMATION
 Name: ${researchData.company_name || 'Brand'}
 Industry: ${researchData.industry || 'General'}
-Products: ${JSON.stringify((researchData.products || []).slice(0, 3)).substring(0, 2000)}
-Value Props: ${JSON.stringify(researchData.value_propositions || []).substring(0, 1000)}
+Products: ${JSON.stringify((researchData.products || []).slice(0, 3))}
+Value Props: ${JSON.stringify(researchData.value_propositions || [])}
 `;
 
   // Add image URLs if available
@@ -626,7 +628,7 @@ ${fontPairing.googleImport}
 6. NEVER use em dashes anywhere. Use " - " (space-dash-space) instead.
 7. Make it visually STUNNING - this should look like a $10,000 custom landing page
 8. Include ALL sections described in the page structure - do not skip any
-9. Every section should have real, substantial content - no placeholder text
+9. Use the EXACT copy text provided in PAGE COPY above - do NOT rewrite, rephrase, or invent new copy. The copy has already been professionally written.
 10. Use smooth scroll, hover effects, and modern CSS animations
 
 Generate the COMPLETE HTML page. Return ONLY the HTML code starting with <!DOCTYPE html>. No markdown code blocks or explanations.`;
