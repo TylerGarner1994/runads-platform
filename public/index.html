@@ -7191,7 +7191,14 @@
             })
           });
 
-          const stepResult = await stepRes.json();
+          let stepResult;
+          try {
+            stepResult = await stepRes.json();
+          } catch (parseErr) {
+            stepEl.classList.remove('running');
+            stepEl.classList.add('failed');
+            throw new Error(`${stepName} timed out or returned an invalid response (HTTP ${stepRes.status}). Try again.`);
+          }
 
           if (!stepRes.ok) {
             stepEl.classList.remove('running');

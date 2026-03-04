@@ -1,3 +1,5 @@
+export const config = { maxDuration: 300 };
+
 import { sql } from '@vercel/postgres';
 
 // Import step handlers
