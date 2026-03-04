@@ -50,12 +50,14 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
   });
 
   // Use shared Claude utility with retry logic and error handling
+  // maxTokens 16000 keeps generation within Vercel's 300s function limit
+  // (a complete landing page is typically 10-15K tokens of HTML)
   const response = await callClaude({
     systemPrompt,
     userPrompt,
     model: 'claude-sonnet-4-6',
-    maxTokens: 32000,
-    retries: 2
+    maxTokens: 16000,
+    retries: 1
   });
 
   // Check for truncation - if stop_reason is 'max_tokens', the output was cut off
