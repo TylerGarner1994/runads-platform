@@ -51,7 +51,8 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
     productImages,
     fontPairing,
     templateHtml,
-    templateCss
+    templateCss,
+    cta_url
   });
 
   // Direct API call — no retry wrapper to maximize the 300s Vercel time budget
@@ -560,7 +561,7 @@ ${baseDesignSystem}
 // ============================================================
 // USER PROMPT BUILDER
 // ============================================================
-function buildUserPrompt({ page_type, copy, brandGuide, strategy, researchData, allImages, productImages, fontPairing, templateHtml, templateCss }) {
+function buildUserPrompt({ page_type, copy, brandGuide, strategy, researchData, allImages, productImages, fontPairing, templateHtml, templateCss, cta_url }) {
   // Strip metadata the design step doesn't need, use compact JSON to save tokens
   const designCopy = { ...copy };
   delete designCopy.unverified_claims;
