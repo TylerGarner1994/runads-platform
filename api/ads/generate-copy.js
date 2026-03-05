@@ -40,8 +40,16 @@ export default async function handler(req, res) {
       tone = 'conversational',
       num_variations = 3,
       include_hooks = true,
-      custom_instructions
+      custom_instructions,
+      brief_id,
+      platforms,
+      landing_page_id
     } = req.body;
+
+    // Normalize platforms: default to legacy meta-only behavior
+    const requestedPlatforms = Array.isArray(platforms) && platforms.length > 0
+      ? platforms.map(p => p.toLowerCase())
+      : null;
 
     if (!client_id) {
       return res.status(400).json({
@@ -61,6 +69,35 @@ export default async function handler(req, res) {
     }
 
     const businessResearch = client.business_research || {};
+
+    // Load campaign brief if provided
+    let briefData = null;
+    if (brief_id) {
+      const briefResult = await db.query('SELECT * FROM campaign_briefs WHERE id = $1', [brief_id]);
+      if (briefResult.rows[0]) {
+        briefData = briefResult.rows[0];
+      }
+    }
+
+    // Load landing page copy if provided
+    let landingPageCopy = null;
+    if (landing_page_id) {
+      const pageResult = await db.query(
+        'SELECT html_content, meta_title, meta_description FROM landing_pages WHERE id = $1',
+        [landing_page_id]
+      );
+      if (pageResult.rows[0]) {
+        const pageHtml = pageResult.rows[0].html_content || '';
+        const h1Match = pageHtml.match(/<h1[^>]*>(.*?)<\/h1>/is);
+        const h2Match = pageHtml.match(/<h2[^>]*>(.*?)<\/h2>/is);
+        landingPageCopy = {
+          headline: h1Match ? h1Match[1].replace(/<[^>]+>/g, '').trim() : '',
+          subheadline: h2Match ? h2Match[1].replace(/<[^>]+>/g, '').trim() : '',
+          meta_title: pageResult.rows[0].meta_title,
+          meta_description: pageResult.rows[0].meta_description
+        };
+      }
+    }
 
     // Get verified claims for the client
     const verifiedClaims = await db.getVerifiedClaims(client_id, 10);
@@ -91,7 +128,10 @@ export default async function handler(req, res) {
       tone,
       numVariations: num_variations,
       includeHooks: include_hooks,
-      customInstructions: custom_instructions
+      customInstructions: custom_instructions,
+      platforms: requestedPlatforms,
+      briefData,
+      landingPageCopy
     });
 
     const { text: responseText, tokensUsed: totalTokens, json: parsedJson } = await callClaudeWithFallback({
@@ -104,7 +144,55 @@ export default async function handler(req, res) {
 
     const adVariations = parsedJson || { raw_response: responseText };
 
-    // Store generated copies in database
+    // Multi-platform response handling
+    if (requestedPlatforms) {
+      const platformResults = {};
+      const platformData = adVariations.platforms || {};
+
+      for (const platform of requestedPlatforms) {
+        const platVariations = platformData[platform]?.variations || [];
+        const savedForPlatform = [];
+
+        for (const variation of platVariations) {
+          const copyId = uuidv4();
+          try {
+            await db.saveAdCopy({
+              id: copyId,
+              campaign_id: campaign_id || null,
+              client_id,
+              user_id: user.userId,
+              channel: platform,
+              ad_type,
+              primary_text: variation.primary_text || variation.hook_text || '',
+              headline: variation.headline || (variation.headlines && variation.headlines[0]) || '',
+              description: variation.description || (variation.descriptions && variation.descriptions[0]) || '',
+              cta: variation.cta || variation.cta_overlay || '',
+              hook_angle: variation.hook_angle || hook_angle || '',
+              target_audience: target_audience || '',
+              offer_details: offer_details || '',
+              generation_prompt: prompt.substring(0, 2000),
+              model_used: 'claude-sonnet-4',
+              tokens_used: totalTokens
+            });
+            savedForPlatform.push({ id: copyId, ...variation });
+          } catch (saveError) {
+            console.error(`Error saving ${platform} ad copy:`, saveError);
+            savedForPlatform.push({ id: copyId, ...variation });
+          }
+        }
+
+        platformResults[platform] = savedForPlatform.length > 0 ? savedForPlatform : platVariations;
+      }
+
+      return res.status(200).json({
+        success: true,
+        platforms: platformResults,
+        strategy_notes: adVariations.strategy_notes || null,
+        tokens_used: totalTokens
+      });
+    }
+
+    // Legacy single-platform (meta) response
     const savedCopies = [];
 
     if (adVariations.variations) {
@@ -171,7 +259,10 @@ function buildAdCopyPrompt({
   tone,
   numVariations,
   includeHooks,
-  customInstructions
+  customInstructions,
+  platforms,
+  briefData,
+  landingPageCopy
 }) {
   const ctaMap = {
     learn_more: 'Learn More',
@@ -192,7 +283,7 @@ function buildAdCopyPrompt({
     authoritative: 'Expert positioning. Use data, credentials, and social proof. Confident but not arrogant.'
   };
 
-  return `BUSINESS CONTEXT:
+  let prompt = `BUSINESS CONTEXT:
 Company: ${businessResearch.company_name || client.name}
 Industry: ${client.industry || businessResearch.industry || 'Unknown'}
 Value Propositions: ${JSON.stringify(businessResearch.value_propositions || [])}
@@ -202,7 +293,32 @@ Brand Voice: ${client.brand_voice || businessResearch.brand_voice || 'Profession
 Unique Differentiators: ${JSON.stringify(businessResearch.unique_differentiators || [])}
 
 VERIFIED CLAIMS (use these for credibility):
-${verifiedClaims.map(c => `- [${c.claim_type}] ${c.claim_text}`).join('\n') || 'No verified claims available'}
+${verifiedClaims.map(c => `- [${c.claim_type}] ${c.claim_text}`).join('\n') || 'No verified claims available'}`;
+
+  // Inject campaign brief context
+  if (briefData) {
+    prompt += `
+
+## CAMPAIGN BRIEF CONTEXT
+Objective: ${briefData.objective || 'Not specified'}
+Target Audience: ${JSON.stringify(briefData.target_audience || {})}
+Key Messaging: ${JSON.stringify(briefData.messaging || {})}
+Platforms: ${JSON.stringify(briefData.platforms || [])}
+Budget: ${JSON.stringify(briefData.budget || {})}`;
+  }
+
+  // Inject landing page alignment context
+  if (landingPageCopy) {
+    prompt += `
+
+## LANDING PAGE COPY (Ensure ad copy aligns with this)
+Headline: ${landingPageCopy.headline}
+Subheadline: ${landingPageCopy.subheadline}
+Meta Title: ${landingPageCopy.meta_title || ''}
+Meta Description: ${landingPageCopy.meta_description || ''}`;
+  }
+
+  prompt += `
 
 GENERATION REQUIREMENTS:
 - Ad Type: ${adType}
@@ -213,7 +329,72 @@ GENERATION REQUIREMENTS:
 - Tone: ${tone} - ${toneGuides[tone] || toneGuides.conversational}
 - Number of Variations: ${numVariations}
 
-${customInstructions ? `ADDITIONAL INSTRUCTIONS: ${customInstructions}` : ''}
+${customInstructions ? `ADDITIONAL INSTRUCTIONS: ${customInstructions}` : ''}`;
+
+  // Multi-platform prompt
+  if (platforms) {
+    const platformSpecs = [];
+
+    if (platforms.includes('meta')) {
+      platformSpecs.push(`### Meta (Facebook/Instagram)
+For each variation:
+- primary_text (125-500 chars) - Main ad copy above the image
+- headline (under 40 chars) - Punchy headline on the image
+- description (under 30 chars) - Supporting text below headline
+- cta - Button text
+- hook_angle - Name the hook strategy used`);
+    }
+
+    if (platforms.includes('google')) {
+      platformSpecs.push(`### Google Ads
+For each variation:
+- headlines - Array of up to 15 headlines (each max 30 chars)
+- descriptions - Array of up to 4 descriptions (each max 90 chars)
+- sitelinks - Array of suggested sitelink texts
+- hook_angle - Name the hook strategy used`);
+    }
+
+    if (platforms.includes('tiktok')) {
+      platformSpecs.push(`### TikTok
+For each variation:
+- hook_text - Opening hook text for first 3 seconds
+- body_text - Main body copy
+- cta_overlay - CTA overlay text for the video
+- hashtags - Array of 5-10 relevant hashtags
+- hook_angle - Name the hook strategy used`);
+    }
+
+    prompt += `
+
+Generate ${numVariations} unique ad variations PER PLATFORM, each with a different hook angle.
+
+## PLATFORM-SPECIFIC REQUIREMENTS:
+${platformSpecs.join('\n\n')}
+
+Return ONLY valid JSON in this format:
+{
+  "platforms": {
+    ${platforms.includes('meta') ? `"meta": {
+      "variations": [
+        { "primary_text": "...", "headline": "...", "description": "...", "cta": "${ctaMap[ctaGoal] || 'Learn More'}", "hook_angle": "..." }
+      ]
+    }` : ''}${platforms.includes('meta') && (platforms.includes('google') || platforms.includes('tiktok')) ? ',' : ''}
+    ${platforms.includes('google') ? `"google": {
+      "variations": [
+        { "headlines": ["...", "..."], "descriptions": ["...", "..."], "sitelinks": ["...", "..."], "hook_angle": "..." }
+      ]
+    }` : ''}${platforms.includes('google') && platforms.includes('tiktok') ? ',' : ''}
+    ${platforms.includes('tiktok') ? `"tiktok": {
+      "variations": [
+        { "hook_text": "...", "body_text": "...", "cta_overlay": "...", "hashtags": ["...", "..."], "hook_angle": "..." }
+      ]
+    }` : ''}
+  },
+  "strategy_notes": "Brief explanation of why these approaches will work for this audience"
+}`;
+  } else {
+    // Legacy single-platform (meta) prompt
+    prompt += `
 
 Generate ${numVariations} unique ad variations, each with a different hook angle. For each variation:
 1. Primary Text (125-500 chars) - The main ad copy that appears above the image
@@ -235,4 +416,7 @@ Return ONLY valid JSON in this format:
   ],
   "strategy_notes": "Brief explanation of why these approaches will work for this audience"
 }`;
+  }
+
+  return prompt;
 }

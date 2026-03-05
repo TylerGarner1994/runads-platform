@@ -3464,6 +3464,21 @@
       font-weight: 600;
     }
 
+    /* Briefs */
+    .briefs-list .data-table { width: 100%; border-collapse: collapse; }
+    .briefs-list .data-table th,
+    .briefs-list .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-light); }
+    .briefs-list .data-table th { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-medium); }
+    .briefs-list .data-table tr:hover { background: var(--bg-light); }
+    .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+    .status-badge.success { background: var(--success-light); color: var(--success); }
+    .status-badge.warning { background: var(--warning-light); color: #b78a00; }
+    .form-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-light); }
+    .form-section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-dark); }
+    .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 8px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 0.9rem; }
+    .checkbox-label:hover { background: var(--bg-light); }
+    .checkbox-label input[type="checkbox"] { width: 16px; height: 16px; }
+
     .ad-generator-layout {
       display: flex;
       flex-direction: column;
@@ -4090,6 +4105,17 @@
             <span class="badge" id="navClientCount">0</span>
           </a>
         </div>
+
+          <a class="nav-item" data-page="briefs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+              <rect x="9" y="3" width="6" height="4" rx="1"/>
+              <line x1="9" y1="12" x2="15" y2="12"/>
+              <line x1="9" y1="16" x2="13" y2="16"/>
+            </svg>
+            <span class="nav-item-label">Briefs</span>
+            <span class="badge" id="navBriefCount">0</span>
+          </a>
 
         <div class="nav-divider"></div>
 
@@ -4980,6 +5006,159 @@
         </div>
       </div>
 
+        <!-- ============================================ -->
+        <!-- BRIEFS SECTION -->
+        <!-- ============================================ -->
+        <div id="briefsSection" class="page-section" style="display: none;">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title">
+                <h2>Campaign Briefs</h2>
+                <span class="badge badge-new">New</span>
+              </div>
+              <button class="btn btn-primary" onclick="openCreateBriefModal()">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
+                New Brief
+              </button>
+            </div>
+            <div id="briefsList" class="briefs-list">
+              <div class="empty-state" style="padding: 2rem;">
+                <div class="empty-illustration">📋</div>
+                <h3>No briefs yet</h3>
+                <p>Create a campaign brief to connect your client, landing page, and ad strategy.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Brief Detail/Edit View (hidden by default) -->
+          <div id="briefDetailView" style="display: none;">
+            <div class="section-card">
+              <div class="section-header">
+                <button class="btn btn-secondary btn-small" onclick="closeBriefDetail()">← Back to Briefs</button>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="btn btn-secondary btn-small" onclick="autoFillBrief()">Auto-Fill from Research</button>
+                  <button class="btn btn-primary btn-small" onclick="saveBrief()">Save Brief</button>
+                </div>
+              </div>
+
+              <!-- Campaign Info -->
+              <div class="form-section">
+                <h3>Campaign Info</h3>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="briefName">Campaign Name</label>
+                    <input type="text" id="briefName" placeholder="e.g., Spring Sale 2026">
+                  </div>
+                  <div class="form-group">
+                    <label for="briefStatus">Status</label>
+                    <select id="briefStatus">
+                      <option value="draft">Draft</option>
+                      <option value="active">Active</option>
+                      <option value="paused">Paused</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="briefObjective">Campaign Objective</label>
+                  <textarea id="briefObjective" rows="2" placeholder="e.g., Generate 500 leads for spring collection launch"></textarea>
+                </div>
+                <div class="form-group">
+                  <label for="briefClient">Client</label>
+                  <select id="briefClient">
+                    <option value="">-- Select Client --</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Budget & Timeline -->
+              <div class="form-section">
+                <h3>Budget & Timeline</h3>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="briefBudgetTotal">Total Budget ($)</label>
+                    <input type="number" id="briefBudgetTotal" placeholder="5000">
+                  </div>
+                  <div class="form-group">
+                    <label for="briefBudgetDaily">Daily Budget ($)</label>
+                    <input type="number" id="briefBudgetDaily" placeholder="100">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="briefStartDate">Start Date</label>
+                    <input type="date" id="briefStartDate">
+                  </div>
+                  <div class="form-group">
+                    <label for="briefEndDate">End Date</label>
+                    <input type="date" id="briefEndDate">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Audience -->
+              <div class="form-section">
+                <h3>Target Audience</h3>
+                <div id="briefAudienceSegments">
+                  <div class="form-group">
+                    <label>Audience Segments</label>
+                    <textarea id="briefAudience" rows="3" placeholder="Describe target audience segments..."></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Messaging -->
+              <div class="form-section">
+                <h3>Messaging</h3>
+                <div class="form-group">
+                  <label for="briefKeyMessages">Key Messages</label>
+                  <textarea id="briefKeyMessages" rows="3" placeholder="Core messages to communicate..."></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="briefTone">Tone</label>
+                    <select id="briefTone">
+                      <option value="professional">Professional</option>
+                      <option value="conversational">Conversational</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="playful">Playful</option>
+                      <option value="authoritative">Authoritative</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="briefAngles">Messaging Angles</label>
+                    <input type="text" id="briefAngles" placeholder="e.g., savings, transformation, exclusivity">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Platforms -->
+              <div class="form-section">
+                <h3>Platforms</h3>
+                <div class="platform-checkboxes" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                  <label class="checkbox-label"><input type="checkbox" id="briefPlatformMeta" value="meta"> Meta (Facebook/Instagram)</label>
+                  <label class="checkbox-label"><input type="checkbox" id="briefPlatformGoogle" value="google"> Google Ads</label>
+                  <label class="checkbox-label"><input type="checkbox" id="briefPlatformTiktok" value="tiktok"> TikTok</label>
+                  <label class="checkbox-label"><input type="checkbox" id="briefPlatformEmail" value="email"> Email</label>
+                </div>
+              </div>
+
+              <!-- Connected Assets -->
+              <div class="form-section">
+                <h3>Connected Assets</h3>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="briefLandingPage">Landing Page</label>
+                    <select id="briefLandingPage">
+                      <option value="">-- None --</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Ad Generator Section (hidden by default) -->
         <div id="adGeneratorSection" class="page-section" style="display: none;">
           <div class="section-card">
@@ -5049,6 +5228,30 @@
               <!-- Step 3A: Copy Generation Options -->
               <div class="ad-gen-step" id="adGenCopyOptions" style="display: none;">
                 <h3 class="ad-gen-step-title">3. Ad Copy Settings</h3>
+
+                <div class="form-group">
+                  <label for="adCopyPlatform">Platform</label>
+                  <select id="adCopyPlatform">
+                    <option value="meta">Meta (Facebook/Instagram)</option>
+                    <option value="google">Google Ads</option>
+                    <option value="tiktok">TikTok</option>
+                  </select>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="adCopyBrief">Link to Brief (Optional)</label>
+                    <select id="adCopyBrief">
+                      <option value="">-- No Brief --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="adCopyLandingPage">Link to Landing Page (Optional)</label>
+                    <select id="adCopyLandingPage">
+                      <option value="">-- No Page --</option>
+                    </select>
+                  </div>
+                </div>
 
                 <div class="form-row">
                   <div class="form-group">
@@ -5890,6 +6093,37 @@
     </div>
   </div>
 
+  <!-- Create Brief Modal -->
+  <div id="createBriefModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeCreateBriefModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>New Campaign Brief</h3>
+        <button class="modal-close" onclick="closeCreateBriefModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="newBriefName">Campaign Name</label>
+          <input type="text" id="newBriefName" placeholder="e.g., Spring Sale 2026">
+        </div>
+        <div class="form-group">
+          <label for="newBriefClient">Client</label>
+          <select id="newBriefClient">
+            <option value="">-- Select Client --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="newBriefObjective">Objective</label>
+          <textarea id="newBriefObjective" rows="2" placeholder="What's the goal of this campaign?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCreateBriefModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createBrief()">Create Brief</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Link Editor Popup -->
   <div class="link-editor-backdrop" id="linkEditorBackdrop" onclick="closeLinkEditor()"></div>
   <div class="link-editor-popup" id="linkEditorPopup">
@@ -5997,6 +6231,9 @@
           break;
         case 'domains':
           showPage('domains');
+          break;
+        case 'briefs':
+          showPage('briefs');
           break;
         default:
           showPage('dashboard');
@@ -6196,7 +6433,8 @@
         analytics: 'Analytics',
         leads: 'Leads',
         adGenerator: 'Ad Generator',
-        domains: 'Domains'
+        domains: 'Domains',
+        briefs: 'Campaign Briefs'
       };
       const pageTitle = document.getElementById('mainPageTitle') || document.querySelector('.page-title');
       if (pageTitle) pageTitle.textContent = titles[pageName] || 'Dashboard';
@@ -6208,6 +6446,7 @@
       const clientDetailSection = document.getElementById('clientDetailSection');
       const adGeneratorSection = document.getElementById('adGeneratorSection');
       const domainsSection = document.getElementById('domainsSection');
+      const briefsSection = document.getElementById('briefsSection');
 
       // Hide all sections first
       if (dashboardSection) dashboardSection.style.display = 'none';
@@ -6216,6 +6455,7 @@
       if (clientDetailSection) clientDetailSection.style.display = 'none';
       if (adGeneratorSection) adGeneratorSection.style.display = 'none';
       if (domainsSection) domainsSection.style.display = 'none';
+      if (briefsSection) briefsSection.style.display = 'none';
 
       // Map page names to URL hashes
       const urlMap = {
@@ -6225,7 +6465,8 @@
         adGenerator: 'ad-generator',
         analytics: 'analytics',
         leads: 'leads',
-        domains: 'domains'
+        domains: 'domains',
+        briefs: 'briefs'
       };
 
       // Show relevant sections based on page
@@ -6244,6 +6485,9 @@
       } else if (pageName === 'domains') {
         if (domainsSection) domainsSection.style.display = 'block';
         loadDomains();
+      } else if (pageName === 'briefs') {
+        if (briefsSection) briefsSection.style.display = 'block';
+        loadBriefs();
       }
 
       // Update URL hash (without triggering hashchange event)
@@ -8242,6 +8486,29 @@
 
         // Load bias and style options
         await loadAdGenOptions();
+
+        // Populate brief dropdown
+        try {
+          const briefsRes = await fetch('/api/briefs');
+          const briefsData = await briefsRes.json();
+          const briefSelect = document.getElementById('adCopyBrief');
+          if (briefSelect && briefsData.success) {
+            briefSelect.innerHTML = '<option value="">-- No Brief --</option>' +
+              (briefsData.briefs || []).map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+          }
+        } catch (e) { console.error('Failed to load briefs for ad gen:', e); }
+
+        // Populate landing page dropdown
+        try {
+          const pagesRes = await fetch('/api/pages');
+          const pagesData = await pagesRes.json();
+          const pageSelect = document.getElementById('adCopyLandingPage');
+          if (pageSelect) {
+            const pagesList = pagesData.success ? pagesData.pages : (Array.isArray(pagesData) ? pagesData : []);
+            pageSelect.innerHTML = '<option value="">-- No Page --</option>' +
+              pagesList.map(p => `<option value="${p.id}">${escapeHtml(p.name || p.slug || p.id)}</option>`).join('');
+          }
+        } catch (e) { console.error('Failed to load pages for ad gen:', e); }
       } catch (error) {
         console.error('Error initializing ad generator:', error);
       }
@@ -8428,7 +8695,10 @@
               hook_angle: document.getElementById('adCopyHook').value,
               target_audience: document.getElementById('adCopyAudience').value,
               offer_details: document.getElementById('adCopyOffer').value,
-              num_variations: parseInt(document.getElementById('adCopyVariations').value)
+              num_variations: parseInt(document.getElementById('adCopyVariations').value),
+              platform: document.getElementById('adCopyPlatform')?.value || 'meta',
+              brief_id: document.getElementById('adCopyBrief')?.value || undefined,
+              landing_page_id: document.getElementById('adCopyLandingPage')?.value || undefined
             })
           });
 
@@ -8792,6 +9062,234 @@
         }
       } catch (err) {
         alert('Error deleting domain: ' + err.message);
+      }
+    }
+    // ============================================
+    // CAMPAIGN BRIEFS
+    // ============================================
+    let currentBriefId = null;
+    let currentBriefData = null;
+
+    async function loadBriefs() {
+      try {
+        const res = await fetch('/api/briefs');
+        if (!res.ok) throw new Error('Failed to load briefs');
+        const result = await res.json();
+        if (result.success) {
+          const briefs = result.briefs || [];
+          document.getElementById('navBriefCount').textContent = briefs.length;
+          renderBriefsList(briefs);
+        }
+      } catch (error) {
+        console.error('Failed to load briefs:', error);
+      }
+    }
+
+    function renderBriefsList(briefs) {
+      const container = document.getElementById('briefsList');
+      if (!briefs.length) {
+        container.innerHTML = '<div class="empty-state" style="padding: 2rem;"><div class="empty-illustration">📋</div><h3>No briefs yet</h3><p>Create a campaign brief to connect your client, landing page, and ad strategy.</p></div>';
+        return;
+      }
+      container.innerHTML = '<table class="data-table"><thead><tr><th>Name</th><th>Client</th><th>Status</th><th>Platforms</th><th>Created</th><th></th></tr></thead><tbody>' +
+        briefs.map(b => {
+          const platforms = (b.platforms || []).join(', ') || '-';
+          const statusClass = b.status === 'active' ? 'success' : (b.status === 'draft' ? 'warning' : '');
+          return `<tr onclick="openBriefDetail('${b.id}')" style="cursor:pointer;">
+            <td><strong>${escapeHtml(b.name)}</strong></td>
+            <td>${escapeHtml(b.client_name || '-')}</td>
+            <td><span class="status-badge ${statusClass}">${b.status || 'draft'}</span></td>
+            <td>${escapeHtml(platforms)}</td>
+            <td>${new Date(b.created_at).toLocaleDateString()}</td>
+            <td><button class="btn btn-secondary btn-small" onclick="event.stopPropagation(); deleteBrief('${b.id}')">Delete</button></td>
+          </tr>`;
+        }).join('') + '</tbody></table>';
+    }
+
+    function openCreateBriefModal() {
+      const select = document.getElementById('newBriefClient');
+      select.innerHTML = '<option value="">-- Select Client --</option>' +
+        (clients || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      document.getElementById('createBriefModal').style.display = 'flex';
+    }
+
+    function closeCreateBriefModal() {
+      document.getElementById('createBriefModal').style.display = 'none';
+    }
+
+    async function createBrief() {
+      const name = document.getElementById('newBriefName').value.trim();
+      if (!name) { showToast('Campaign name is required', 'warning'); return; }
+
+      try {
+        const res = await fetch('/api/briefs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            client_id: document.getElementById('newBriefClient').value || null,
+            objective: document.getElementById('newBriefObjective').value || null
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          closeCreateBriefModal();
+          showToast('Brief created!', 'success');
+          openBriefDetail(result.brief.id);
+          loadBriefs();
+        } else {
+          showToast(result.error || 'Failed to create brief', 'error');
+        }
+      } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+
+    async function openBriefDetail(briefId) {
+      try {
+        const res = await fetch(`/api/briefs/${briefId}`);
+        const result = await res.json();
+        if (!result.success) { showToast('Brief not found', 'error'); return; }
+
+        currentBriefId = briefId;
+        currentBriefData = result.brief;
+        const b = result.brief;
+
+        document.getElementById('briefName').value = b.name || '';
+        document.getElementById('briefStatus').value = b.status || 'draft';
+        document.getElementById('briefObjective').value = b.objective || '';
+
+        const clientSelect = document.getElementById('briefClient');
+        clientSelect.innerHTML = '<option value="">-- Select Client --</option>' +
+          (clients || []).map(c => `<option value="${c.id}" ${c.id === b.client_id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+
+        const budget = b.budget || {};
+        document.getElementById('briefBudgetTotal').value = budget.total || '';
+        document.getElementById('briefBudgetDaily').value = budget.daily || '';
+
+        const timeline = b.timeline || {};
+        document.getElementById('briefStartDate').value = timeline.start_date || '';
+        document.getElementById('briefEndDate').value = timeline.end_date || '';
+
+        const audience = b.target_audience || [];
+        document.getElementById('briefAudience').value = Array.isArray(audience) ? audience.map(a => typeof a === 'string' ? a : (a.segment || JSON.stringify(a))).join('\n') : JSON.stringify(audience);
+
+        const messaging = b.messaging || {};
+        document.getElementById('briefKeyMessages').value = messaging.key_messages || (Array.isArray(messaging) ? messaging.join('\n') : '');
+        document.getElementById('briefTone').value = messaging.tone || 'professional';
+        document.getElementById('briefAngles').value = (messaging.angles || []).join(', ');
+
+        ['meta', 'google', 'tiktok', 'email'].forEach(p => {
+          const cb = document.getElementById('briefPlatform' + p.charAt(0).toUpperCase() + p.slice(1));
+          if (cb) cb.checked = (b.platforms || []).includes(p);
+        });
+
+        try {
+          const pagesRes = await fetch('/api/pages');
+          const pagesResult = await pagesRes.json();
+          const pageSelect = document.getElementById('briefLandingPage');
+          pageSelect.innerHTML = '<option value="">-- None --</option>' +
+            ((pagesResult.success ? pagesResult.pages : pagesResult) || []).map(p =>
+              `<option value="${p.id}" ${p.id === b.landing_page_id ? 'selected' : ''}>${escapeHtml(p.name || p.slug || p.id)}</option>`
+            ).join('');
+        } catch (e) { console.error('Failed to load pages for brief:', e); }
+
+        document.getElementById('briefsList').parentElement.style.display = 'none';
+        document.getElementById('briefDetailView').style.display = 'block';
+      } catch (error) {
+        showToast('Error loading brief: ' + error.message, 'error');
+      }
+    }
+
+    function closeBriefDetail() {
+      document.getElementById('briefDetailView').style.display = 'none';
+      document.getElementById('briefsList').parentElement.style.display = 'block';
+      currentBriefId = null;
+      currentBriefData = null;
+    }
+
+    async function saveBrief() {
+      if (!currentBriefId) return;
+
+      const platforms = [];
+      ['meta', 'google', 'tiktok', 'email'].forEach(p => {
+        const cb = document.getElementById('briefPlatform' + p.charAt(0).toUpperCase() + p.slice(1));
+        if (cb && cb.checked) platforms.push(p);
+      });
+
+      const body = {
+        name: document.getElementById('briefName').value,
+        status: document.getElementById('briefStatus').value,
+        objective: document.getElementById('briefObjective').value,
+        client_id: document.getElementById('briefClient').value || null,
+        budget: {
+          total: parseFloat(document.getElementById('briefBudgetTotal').value) || null,
+          daily: parseFloat(document.getElementById('briefBudgetDaily').value) || null
+        },
+        timeline: {
+          start_date: document.getElementById('briefStartDate').value || null,
+          end_date: document.getElementById('briefEndDate').value || null
+        },
+        target_audience: document.getElementById('briefAudience').value.split('\n').filter(Boolean),
+        messaging: {
+          key_messages: document.getElementById('briefKeyMessages').value,
+          tone: document.getElementById('briefTone').value,
+          angles: document.getElementById('briefAngles').value.split(',').map(s => s.trim()).filter(Boolean)
+        },
+        platforms,
+        landing_page_id: document.getElementById('briefLandingPage').value || null
+      };
+
+      try {
+        const res = await fetch(`/api/briefs/${currentBriefId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast('Brief saved!', 'success');
+        } else {
+          showToast(result.error || 'Save failed', 'error');
+        }
+      } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+
+    async function autoFillBrief() {
+      const clientId = document.getElementById('briefClient').value;
+      if (!clientId) { showToast('Select a client first', 'warning'); return; }
+
+      const objective = document.getElementById('briefObjective').value;
+      showToast('Auto-filling from research...', 'info');
+
+      try {
+        const res = await fetch('/api/briefs/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: clientId, objective: objective || 'general marketing campaign' })
+        });
+        const result = await res.json();
+        if (result.success && result.brief) {
+          openBriefDetail(result.brief.id);
+          showToast('Brief auto-filled from research!', 'success');
+        } else {
+          showToast(result.error || 'Auto-fill failed', 'error');
+        }
+      } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+
+    async function deleteBrief(briefId) {
+      if (!confirm('Delete this brief?')) return;
+      try {
+        await fetch(`/api/briefs/${briefId}`, { method: 'DELETE' });
+        showToast('Brief deleted', 'success');
+        loadBriefs();
+      } catch (error) {
+        showToast('Error: ' + error.message, 'error');
       }
     }
   </script>

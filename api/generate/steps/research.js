@@ -271,7 +271,13 @@ Return ONLY valid JSON.`;
   // Collect all scraped images for use by the design step
   const allImages = Object.values(scrapedContent)
     .flatMap(content => content.images || []);
-  const uniqueImages = [...new Set(allImages)].slice(0, 20);
+  const seen = new Set();
+  const uniqueImages = allImages.filter(img => {
+    const imgUrl = typeof img === 'string' ? img : img.url;
+    if (seen.has(imgUrl)) return false;
+    seen.add(imgUrl);
+    return true;
+  }).slice(0, 20);
 
   // Attach images to the research output so design step can access them
   businessResearch.images = uniqueImages;
@@ -334,7 +340,12 @@ async function fetchAndExtractContent(url) {
 
       try {
         const fullUrl = new URL(srcUrl, url).toString();
-        images.push(fullUrl);
+        const altMatch = imgMatch[0].match(/alt=["']([^"']*)/i);
+        images.push({
+          url: fullUrl,
+          alt: altMatch ? altMatch[1] : '',
+          source_page: url
+        });
       } catch {
         // Invalid URL, skip
       }

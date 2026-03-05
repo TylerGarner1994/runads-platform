@@ -31,8 +31,13 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
 
   // Extract scraped images from research data
   const scrapedImages = researchData._scrapedImages || researchData.images || [];
-  const productImages = scrapedImages.filter(img => img.category === 'product' || img.category === 'hero' || img.category === 'feature');
-  const allImages = scrapedImages.length > 0 ? scrapedImages.slice(0, 10) : [];
+  const productImages = scrapedImages.filter(img => {
+    const cat = typeof img === 'string' ? '' : (img.category || '');
+    return cat === 'product' || cat === 'hero' || cat === 'feature';
+  });
+  const allImages = scrapedImages.slice(0, 10).map(img =>
+    typeof img === 'string' ? { url: img, alt: '', category: '' } : img
+  );
 
   // Build font pairing based on page type
   const fontPairing = getFontPairing(page_type, brandGuide);
@@ -651,7 +656,10 @@ function replacePlaceholderImages(html, allImages, productImages) {
     /https?:\/\/source\.unsplash\.com\/[^\s"']+/gi,
     /https?:\/\/images\.unsplash\.com\/[^\s"']+/gi,
     /https?:\/\/placehold\.co\/[^\s"']+/gi,
-    /https?:\/\/dummyimage\.com\/[^\s"']+/gi
+    /https?:\/\/dummyimage\.com\/[^\s"']+/gi,
+    /background-image:\s*url\(['"]?(https?:\/\/via\.placeholder[^)'"]+)['"]?\)/gi,
+    /background-image:\s*url\(['"]?(https?:\/\/placeholder\.com[^)'"]+)['"]?\)/gi,
+    /background-image:\s*url\(['"]?(https?:\/\/placehold\.co[^)'"]+)['"]?\)/gi
   ];
 
   let imageIndex = 0;
@@ -668,6 +676,14 @@ function replacePlaceholderImages(html, allImages, productImages) {
     const img = allImages[imageIndex % allImages.length];
     imageIndex++;
     return `src="${img.url || img.src || img}"`;
+  });
+
+  // Catch-all: replace empty src or src="#" with scraped images
+  html = html.replace(/<img([^>]*)\ssrc=["'](#|)["']/gi, (match, attrs) => {
+    const img = allImages[imageIndex % allImages.length];
+    imageIndex++;
+    const imgUrl = img.url || img.src || img;
+    return `<img${attrs} src="${imgUrl}"`;
   });
 
   return html;

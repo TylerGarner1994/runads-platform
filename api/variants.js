@@ -119,7 +119,7 @@ export default async function handler(req, res) {
 
 // Generate variants for a page
 async function handleGenerate(pageId, req, res) {
-  const { variant_types } = req.body || {};
+  const { variant_types, variant_type, num_variants = 2, instructions = '' } = req.body || {};
 
   // Load the page from storage
   const page = await getPage(pageId);
@@ -127,33 +127,90 @@ async function handleGenerate(pageId, req, res) {
 
   const originalHtml = page.html_content;
   const brand = {}; // Basic brand from page data
-
-  // Determine which variant types to generate
-  const typesToGenerate = variant_types || ['alternate-layout', 'dark-theme', 'urgency-focused'];
   const variants = [];
 
-  for (const type of typesToGenerate) {
-    const variantDef = VARIANT_TYPES[type];
-    if (!variantDef) continue;
+  // AI-powered content variant generation
+  if (['headline', 'hero', 'cta', 'full'].includes(variant_type)) {
+    const headlineMatch = originalHtml.match(/<h1[^>]*>(.*?)<\/h1>/is);
+    const ctaMatch = originalHtml.match(/<(?:a|button)[^>]*class="[^"]*(?:cta|btn-primary)[^"]*"[^>]*>(.*?)<\/(?:a|button)>/is);
+
+    const variantPrompt = `Generate ${num_variants} variant(s) of this landing page's ${variant_type} section.
+
+Original page headline: ${headlineMatch ? headlineMatch[1].replace(/<[^>]+>/g, '') : 'N/A'}
+Original CTA: ${ctaMatch ? ctaMatch[1].replace(/<[^>]+>/g, '') : 'N/A'}
+
+${instructions ? `Instructions: ${instructions}` : ''}
+
+For each variant, provide the modified HTML section that replaces the original. Keep the same structure/design but change the messaging.
+
+Return JSON only: { "variants": [{ "name": "Variant name", "description": "What changed", "changes": [{ "selector": "h1" or "section.hero" etc, "original": "original text", "replacement": "new text" }] }] }`;
 
     try {
-      const variantId = 'var_' + type + '_' + Date.now().toString(36).slice(-4);
-      const variantHtml = variantDef.transform(originalHtml, brand);
+      const { text } = await callClaude(
+        'You are a conversion rate optimization expert. Generate landing page variants for A/B testing. Return valid JSON only.',
+        variantPrompt
+      );
 
-      variants.push({
-        id: variantId,
-        name: variantDef.name,
-        type: type,
-        description: variantDef.description,
-        html_content: variantHtml,
-        views: 0,
-        conversions: 0,
-        conversion_rate: 0,
-        is_winner: false,
-        created_at: new Date().toISOString()
-      });
+      // Parse AI response - extract JSON from potential markdown wrapping
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No valid JSON in AI response');
+      const aiResult = JSON.parse(jsonMatch[0]);
+
+      for (const aiVariant of (aiResult.variants || [])) {
+        const variantId = 'var_ai_' + variant_type + '_' + Date.now().toString(36).slice(-4) + '_' + Math.random().toString(36).slice(2, 6);
+        let variantHtml = originalHtml;
+
+        // Apply each text replacement from AI
+        for (const change of (aiVariant.changes || [])) {
+          if (change.original && change.replacement) {
+            variantHtml = variantHtml.replace(change.original, change.replacement);
+          }
+        }
+
+        variants.push({
+          id: variantId,
+          name: aiVariant.name || `AI ${variant_type} variant`,
+          type: variant_type,
+          description: aiVariant.description || `AI-generated ${variant_type} variant`,
+          html_content: variantHtml,
+          views: 0,
+          conversions: 0,
+          conversion_rate: 0,
+          is_winner: false,
+          created_at: new Date().toISOString()
+        });
+      }
     } catch (e) {
-      console.error(`Failed to generate ${type} variant:`, e.message);
+      console.error(`Failed to generate AI ${variant_type} variants:`, e.message);
+      return res.status(500).json({ error: `AI variant generation failed: ${e.message}` });
+    }
+  } else {
+    // CSS-based variant generation (existing logic)
+    const typesToGenerate = variant_types || ['alternate-layout', 'dark-theme', 'urgency-focused'];
+
+    for (const type of typesToGenerate) {
+      const variantDef = VARIANT_TYPES[type];
+      if (!variantDef) continue;
+
+      try {
+        const variantId = 'var_' + type + '_' + Date.now().toString(36).slice(-4);
+        const variantHtml = variantDef.transform(originalHtml, brand);
+
+        variants.push({
+          id: variantId,
+          name: variantDef.name,
+          type: type,
+          description: variantDef.description,
+          html_content: variantHtml,
+          views: 0,
+          conversions: 0,
+          conversion_rate: 0,
+          is_winner: false,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error(`Failed to generate ${type} variant:`, e.message);
+      }
     }
   }
 

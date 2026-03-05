@@ -81,6 +81,19 @@ export async function runAssemblyStep({ job, stepOutputs, additionalInput, jobId
     qaResults.warnings.push('No responsive CSS patterns detected');
   }
 
+  // 7.5. Check for broken/placeholder/empty image sources
+  const brokenImgPattern = /<img[^>]+src=["']((?:https?:\/\/(?:via\.placeholder|placeholder\.com|placehold\.co|picsum\.photos|dummyimage\.com|source\.unsplash|images\.unsplash)[^"']*)|#|)["']/gi;
+  let brokenMatch;
+  const brokenImages = [];
+  while ((brokenMatch = brokenImgPattern.exec(html)) !== null) {
+    brokenImages.push(brokenMatch[1] || '(empty)');
+  }
+  if (brokenImages.length > 0) {
+    qaResults.warnings.push(`${brokenImages.length} broken/placeholder image(s) found: ${brokenImages.slice(0, 3).join(', ')}`);
+  } else {
+    qaResults.passed.push('No broken or placeholder images detected');
+  }
+
   // 8. Replace placeholder CTA hrefs with actual URL
   if (cta_url && cta_url.trim()) {
     html = html.replace(/href="#"/g, `href="${cta_url}"`);

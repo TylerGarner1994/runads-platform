@@ -326,6 +326,16 @@ export default async function handler(req, res) {
   `);
 
   // ============================================================
+  // 11b. LANDING_PAGES - Add A/B testing columns
+  // ============================================================
+  await runMigration('Add landing_pages.ab_test_active', sql`
+    ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS ab_test_active BOOLEAN DEFAULT FALSE
+  `);
+  await runMigration('Add landing_pages.variants', sql`
+    ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'
+  `);
+
+  // ============================================================
   // 12. LANDING_PAGES - Add client_id column
   // ============================================================
   await runMigration('Add landing_pages.client_id', sql`
@@ -357,6 +367,32 @@ export default async function handler(req, res) {
   // ============================================================
   await runMigration('Add landing_pages.tracking_pixel', sql`
     ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS tracking_pixel TEXT
+  `);
+
+  // ============================================================
+  // 16. CAMPAIGN_BRIEFS TABLE - Create if not exists
+  // ============================================================
+  await runMigration('Create campaign_briefs table', sql`
+    CREATE TABLE IF NOT EXISTS campaign_briefs (
+      id TEXT PRIMARY KEY,
+      client_id TEXT REFERENCES clients(id),
+      name TEXT NOT NULL,
+      status TEXT DEFAULT 'draft',
+      objective TEXT,
+      budget JSONB DEFAULT '{}',
+      timeline JSONB DEFAULT '{}',
+      target_audience JSONB DEFAULT '[]',
+      messaging JSONB DEFAULT '{}',
+      platforms JSONB DEFAULT '[]',
+      landing_page_id TEXT,
+      ad_sets JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await runMigration('Create idx_campaign_briefs_client_id', sql`
+    CREATE INDEX IF NOT EXISTS idx_campaign_briefs_client_id ON campaign_briefs(client_id)
   `);
 
   return res.status(200).json({

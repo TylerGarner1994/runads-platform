@@ -77,13 +77,38 @@ export default async function handler(req, res) {
 
     const page = rows[0];
 
+    // Identify visitor for tracking and variant routing
+    const sessionId = req.cookies?.session_id || crypto.randomUUID();
+    const userAgent = req.headers['user-agent'] || '';
+    const referrer = req.headers['referer'] || '';
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || '';
+
+    // A/B Test variant routing
+    let variantId = null;
+    if (page.ab_test_active && page.variants && page.variants.length > 0) {
+      const visitorKey = ip || sessionId;
+      let hash = 0;
+      for (let i = 0; i < visitorKey.length; i++) {
+        const char = visitorKey.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+
+      const bucket = Math.abs(hash) % 100;
+      const testConfig = page.generation_metadata?.ab_test || {};
+      const controlSplit = testConfig.traffic_split?.control || 50;
+
+      if (bucket >= controlSplit && page.variants.length > 0) {
+        const variantIndex = Math.abs(hash) % page.variants.length;
+        const variant = page.variants[variantIndex];
+        if (variant && variant.html_content) {
+          variantId = variant.id;
+        }
+      }
+    }
+
     // Track page view
     try {
-      const sessionId = req.cookies?.session_id || crypto.randomUUID();
-      const userAgent = req.headers['user-agent'] || '';
-      const referrer = req.headers['referer'] || '';
-      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || '';
-
       // Parse UTM parameters
       const url = new URL(req.url, `https://${req.headers.host}`);
       const utmSource = url.searchParams.get('utm_source');
@@ -98,8 +123,8 @@ export default async function handler(req, res) {
       const deviceType = isTablet ? 'tablet' : (isMobile ? 'mobile' : 'desktop');
 
       await sql`
-        INSERT INTO page_views (page_id, session_id, utm_source, utm_medium, utm_campaign, utm_term, utm_content, ip_address, user_agent, referrer, device_type)
-        VALUES (${page.id}, ${sessionId}, ${utmSource}, ${utmMedium}, ${utmCampaign}, ${utmTerm}, ${utmContent}, ${ip}, ${userAgent}, ${referrer}, ${deviceType})
+        INSERT INTO page_views (page_id, variant_id, session_id, utm_source, utm_medium, utm_campaign, utm_term, utm_content, ip_address, user_agent, referrer, device_type)
+        VALUES (${page.id}, ${variantId}, ${sessionId}, ${utmSource}, ${utmMedium}, ${utmCampaign}, ${utmTerm}, ${utmContent}, ${ip}, ${userAgent}, ${referrer}, ${deviceType})
       `;
     } catch (trackError) {
       console.error('Failed to track page view:', trackError);
@@ -111,7 +136,9 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
 
     // Clean HTML — strip any editor artifacts that may have been saved accidentally
-    let html = page.html_content;
+    let html = variantId
+      ? (page.variants.find(v => v.id === variantId)?.html_content || page.html_content)
+      : page.html_content;
     // Remove contenteditable editing scripts
     html = html.replace(/<script>[\s\S]*?document\.addEventListener\('DOMContentLoaded'[\s\S]*?contentEditable[\s\S]*?<\/script>/gi, '');
     // Remove contenteditable hover/focus styles

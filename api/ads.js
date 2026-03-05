@@ -261,6 +261,9 @@ export default async function handler(req, res) {
     offer_details,
     num_variations,     // 3, 5, or 10
     platform,           // facebook, instagram, linkedin, tiktok, google, email
+    platforms,          // Array: ["meta", "google", "tiktok"] for multi-platform generation
+    brief_id,           // Optional: campaign brief ID for context injection
+    landing_page_id,    // Optional: landing page ID for copy alignment
     // Image prompt settings
     awareness_level,
     cognitive_biases,   // Array of bias keys
@@ -279,14 +282,20 @@ export default async function handler(req, res) {
     const results = {};
     let totalTokens = 0;
 
+    // Normalize multi-platform: if platforms array provided, use it; otherwise single platform
+    const requestedPlatforms = Array.isArray(platforms) && platforms.length > 0
+      ? platforms.map(p => p.toLowerCase())
+      : null;
+    const effectivePlatform = platform || 'facebook';
+
     // Select psychological triggers for this ad campaign
     const selectedTriggers = selectTriggersForAd(
       awareness_level || 'problem_aware',
-      platform || 'facebook',
+      effectivePlatform,
       4
     );
     const triggerContext = buildAdTriggerContext(selectedTriggers);
-    const platformGuide = getPlatformGuidelines(platform || 'facebook');
+    const platformGuide = getPlatformGuidelines(effectivePlatform);
 
     // ============================================================
     // GENERATE AD COPY
@@ -377,7 +386,25 @@ ${knowledgeBaseContext}
 - Add micro-urgency near the CTA without being slimy
 
 ## Output Format
-For each variation, provide:
+${requestedPlatforms ? `Generate ${num_variations || 3} variations PER PLATFORM.
+
+### Platform-specific fields:
+${requestedPlatforms.includes('meta') || requestedPlatforms.includes('facebook') || requestedPlatforms.includes('instagram') ? `**Meta (Facebook/Instagram)**: hook, primary_text (125-500 chars), headline (40 chars), description (30 chars), cta, triggers_used, hook_framework` : ''}
+${requestedPlatforms.includes('google') ? `**Google Ads**: hook, headlines (array, 30 chars each, up to 15), descriptions (array, 90 chars each, up to 4), sitelinks (array), cta, triggers_used, hook_framework` : ''}
+${requestedPlatforms.includes('tiktok') ? `**TikTok**: hook, hook_text (3 sec opening), body_text, cta_overlay, hashtags (5-10), triggers_used, hook_framework` : ''}
+
+Respond in this JSON format:
+{
+  "platforms": {
+    ${requestedPlatforms.map(p => {
+      const key = p === 'facebook' || p === 'instagram' ? 'meta' : p;
+      if (key === 'meta') return `"meta": { "variations": [{ "hook": "...", "primary_text": "...", "headline": "...", "description": "...", "cta": "...", "triggers_used": [], "hook_framework": "..." }] }`;
+      if (key === 'google') return `"google": { "variations": [{ "hook": "...", "headlines": ["..."], "descriptions": ["..."], "sitelinks": ["..."], "cta": "...", "triggers_used": [], "hook_framework": "..." }] }`;
+      if (key === 'tiktok') return `"tiktok": { "variations": [{ "hook": "...", "hook_text": "...", "body_text": "...", "cta_overlay": "...", "hashtags": ["..."], "triggers_used": [], "hook_framework": "..." }] }`;
+      return `"${key}": { "variations": [] }`;
+    }).join(',\n    ')}
+  }
+}` : `For each variation, provide:
 1. **Hook** (first line - must stop the scroll — apply your best hook framework)
 2. **Primary Text** (full ad body — apply biases, bucket brigades, emotional specificity)
 3. **Headline** (short, punchy, benefit-driven)
@@ -399,7 +426,7 @@ Respond in this JSON format:
       "hook_framework": "which framework was used"
     }
   ]
-}`;
+}`}`;
 
       const copyResponse = await callClaude(apiKey, copyPrompt);
       totalTokens += (copyResponse.usage?.input_tokens || 0) + (copyResponse.usage?.output_tokens || 0);
@@ -407,7 +434,12 @@ Respond in this JSON format:
       try {
         const text = copyResponse.content[0].text;
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        results.ad_copy = jsonMatch ? JSON.parse(jsonMatch[0]) : { variations: [] };
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+        if (requestedPlatforms && parsed.platforms) {
+          results.ad_copy = { platforms: parsed.platforms };
+        } else {
+          results.ad_copy = parsed.variations ? parsed : { variations: [] };
+        }
       } catch {
         results.ad_copy = { variations: [], raw: copyResponse.content[0].text };
       }
@@ -644,7 +676,7 @@ Return JSON:
       ...results,
       triggers_used: selectedTriggers.map(t => ({ id: t.id, name: t.name, category: t.category })),
       platform_optimization: {
-        platform: platform || 'facebook',
+        platform: requestedPlatforms || effectivePlatform,
         guidelines: platformGuide
       },
       knowledge_base: kbMeta,
