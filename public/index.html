@@ -3861,6 +3861,76 @@
       font-size: 0.9rem;
     }
 
+    /* Background Generation Banner */
+    .bg-gen-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-dark);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      z-index: 9999;
+      box-shadow: 0 -2px 20px rgba(0,0,0,0.3);
+      animation: slideUpBanner 0.3s ease;
+    }
+    .bg-gen-banner.active { display: flex; }
+    @keyframes slideUpBanner {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .bg-gen-banner .banner-spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .bg-gen-banner .banner-progress {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .bg-gen-banner .banner-text {
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .bg-gen-banner .banner-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .bg-gen-banner .banner-bar-fill {
+      height: 100%;
+      background: var(--accent-primary);
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+    .bg-gen-banner .banner-open-btn {
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .bg-gen-banner .banner-open-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .bg-gen-banner.complete {
+      background: #059669;
+    }
+    .bg-gen-banner.failed {
+      background: #dc2626;
+    }
+
     /* Generation Progress UI */
     .generating-message {
       text-align: center;
@@ -5868,6 +5938,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeGenerateModal()" id="generateCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-secondary" onclick="minimizeGeneration()" id="generateMinimizeBtn" style="display:none;">Continue in Background</button>
         <button type="button" class="btn btn-primary" onclick="generatePageV2()" id="generateBtn">
           ✨ Generate Page
         </button>
@@ -7470,6 +7541,8 @@
     // PIPELINE GENERATION (V2)
     // ============================================
     let currentJobId = null;
+    let bgGenerationRunning = false;
+    let bgGenerationProduct = null;
 
     async function generatePageV2() {
       if (!selectedGenerateType) {
@@ -7487,8 +7560,9 @@
       document.getElementById('generateStep1').style.display = 'none';
       document.getElementById('generateStep2').style.display = 'block';
       document.getElementById('generateBtn').style.display = 'none';
-      document.getElementById('generateCancelBtn').textContent = 'Running...';
-      document.getElementById('generateCancelBtn').disabled = true;
+      document.getElementById('generateCancelBtn').textContent = 'Close';
+      document.getElementById('generateCancelBtn').disabled = false;
+      document.getElementById('generateMinimizeBtn').style.display = 'inline-flex';
 
       // Reset all steps to pending
       document.querySelectorAll('.pipeline-step').forEach(step => {
@@ -7522,18 +7596,44 @@
         if (!startRes.ok) throw new Error(startResult.error);
 
         currentJobId = startResult.job.id;
-        let totalTokens = 0;
-        let verifiedFacts = 0;
+        bgGenerationRunning = true;
+        bgGenerationProduct = product;
+        updateBgBanner(0, pipelineSteps.length, 'Starting generation...');
 
-        // Step 2: Run each step in sequence
-        for (const stepName of pipelineSteps) {
-          // Update UI to show this step is running
+      } catch (error) {
+        alert('Failed to start generation: ' + error.message);
+        resetGenerateModal();
+        return;
+      }
+
+      // Run pipeline steps in background (not blocked by modal)
+      runPipelineInBackground(currentJobId, bgGenerationProduct, pipelineSteps);
+    }
+
+    async function runPipelineInBackground(jobId, product, pipelineSteps) {
+      const stepLabels = {
+        research: 'Deep Research', brand: 'Brand Extraction', strategy: 'Page Strategy',
+        copy: 'Copy Generation', design: 'Design Generation', factcheck: 'Fact Checking', assembly: 'Final Assembly'
+      };
+      let totalTokens = 0;
+      let verifiedFacts = 0;
+
+      try {
+        for (let i = 0; i < pipelineSteps.length; i++) {
+          const stepName = pipelineSteps[i];
+
+          // Update modal UI if open
           const stepEl = document.querySelector(`.pipeline-step[data-step="${stepName}"]`);
-          stepEl.classList.remove('pending');
-          stepEl.classList.add('running');
+          if (stepEl) {
+            stepEl.classList.remove('pending');
+            stepEl.classList.add('running');
+          }
+
+          // Update floating banner
+          updateBgBanner(i, pipelineSteps.length, stepLabels[stepName] || stepName);
 
           // Run the step
-          const stepRes = await fetch(`/api/generate/${currentJobId}/step/${stepName}`, {
+          const stepRes = await fetch(`/api/generate/${jobId}/step/${stepName}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -7547,49 +7647,56 @@
           try {
             stepResult = JSON.parse(stepResText);
           } catch (parseErr) {
-            stepEl.classList.remove('running');
-            stepEl.classList.add('failed');
-            console.error(`[${stepName}] HTTP ${stepRes.status} - Raw response:`, stepResText.substring(0, 500));
+            if (stepEl) { stepEl.classList.remove('running'); stepEl.classList.add('failed'); }
             throw new Error(`${stepName} failed (HTTP ${stepRes.status}): ${stepResText.substring(0, 120)}`);
           }
 
           if (!stepRes.ok) {
-            stepEl.classList.remove('running');
-            stepEl.classList.add('failed');
+            if (stepEl) { stepEl.classList.remove('running'); stepEl.classList.add('failed'); }
             throw new Error(`${stepName} failed: ${stepResult.error}`);
           }
 
-          // Mark step as completed
-          stepEl.classList.remove('running');
-          stepEl.classList.add('completed');
+          // Mark step as completed in modal
+          if (stepEl) {
+            stepEl.classList.remove('running');
+            stepEl.classList.add('completed');
+          }
 
-          // Update stats
+          // Track stats
           totalTokens += stepResult.tokens_used || 0;
           if (stepName === 'factcheck' && stepResult.result?.verified_count) {
             verifiedFacts = stepResult.result.verified_count;
           }
 
-          // Update summary
-          document.getElementById('summaryTokens').textContent = totalTokens.toLocaleString();
-          document.getElementById('summaryCost').textContent = '$' + ((totalTokens / 1000000) * 9).toFixed(3);
-          document.getElementById('summaryFacts').textContent = verifiedFacts;
-          document.getElementById('pipelineSummary').style.display = 'block';
+          // Update modal summary if visible
+          const summaryEl = document.getElementById('pipelineSummary');
+          if (summaryEl) {
+            document.getElementById('summaryTokens').textContent = totalTokens.toLocaleString();
+            document.getElementById('summaryCost').textContent = '$' + ((totalTokens / 1000000) * 9).toFixed(3);
+            document.getElementById('summaryFacts').textContent = verifiedFacts;
+            summaryEl.style.display = 'block';
+          }
         }
 
-        // Generation complete - get the final page
-        const statusRes = await fetch(`/api/generate/${currentJobId}/status`);
+        // Generation complete
+        bgGenerationRunning = false;
+        updateBgBanner(pipelineSteps.length, pipelineSteps.length, 'Complete!');
+
+        // Get the final page info
+        const statusRes = await fetch(`/api/generate/${jobId}/status`);
         const statusResult = await statusRes.json();
 
         if (statusResult.job.page_id) {
-          // Fetch the generated page
           const pageRes = await fetch(`/api/pages/${statusResult.job.page_id}`);
           const pageResult = await pageRes.json();
 
-          if (pageResult.success) {
-            // Close generate modal and open create modal with generated content
-            closeGenerateModal();
+          // Check if modal is still open
+          const modalOpen = document.getElementById('generateModal').classList.contains('active');
 
-            document.getElementById('modalTitle').textContent = '✨ New Landing Page (AI Generated)';
+          if (modalOpen && pageResult.success) {
+            // Modal still open - show result in it
+            closeGenerateModal();
+            document.getElementById('modalTitle').textContent = 'New Landing Page (AI Generated)';
             document.getElementById('pageForm').reset();
             document.getElementById('pageId').value = pageResult.page.id;
             document.getElementById('pageName').value = pageResult.page.name;
@@ -7597,21 +7704,86 @@
             document.getElementById('htmlContent').value = pageResult.page.html_content;
             document.getElementById('deployResult').innerHTML = `
               <div style="padding: 1rem; background: rgba(0, 184, 148, 0.1); border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--success);">
-                <strong style="color: var(--success);">✓ Page Generated Successfully!</strong><br>
+                <strong style="color: var(--success);">Page Generated Successfully!</strong><br>
                 <small style="color: var(--text-medium);">Tokens used: ${totalTokens.toLocaleString()} | Estimated cost: $${((totalTokens / 1000000) * 9).toFixed(3)} | Facts verified: ${verifiedFacts}</small>
               </div>
             `;
             document.getElementById('saveDraftBtn').style.display = 'inline-flex';
             document.getElementById('createModal').classList.add('active');
             document.body.style.overflow = 'hidden';
-
-            await loadPages();
+          } else {
+            // Modal was closed - show toast notification
+            showToast('Page generated! Check your Landing Pages.', 'success');
           }
         }
 
+        // Refresh pages list
+        await loadPages();
+
+        // Hide banner after a delay
+        setTimeout(() => {
+          const banner = document.getElementById('bgGenBanner');
+          banner.classList.remove('active', 'complete');
+        }, 4000);
+
       } catch (error) {
-        alert('Generation failed: ' + error.message);
-        resetGenerateModal();
+        bgGenerationRunning = false;
+        const banner = document.getElementById('bgGenBanner');
+        banner.classList.add('failed');
+        document.getElementById('bgGenSpinner').style.display = 'none';
+        document.getElementById('bgGenText').textContent = 'Generation failed: ' + error.message;
+        document.getElementById('bgGenOpenBtn').style.display = 'none';
+
+        // Check if modal is open
+        const modalOpen = document.getElementById('generateModal').classList.contains('active');
+        if (!modalOpen) {
+          showToast('Page generation failed: ' + error.message, 'error');
+        } else {
+          alert('Generation failed: ' + error.message);
+          resetGenerateModal();
+        }
+
+        setTimeout(() => {
+          banner.classList.remove('active', 'failed');
+          banner.classList.remove('complete');
+          document.getElementById('bgGenSpinner').style.display = '';
+          document.getElementById('bgGenOpenBtn').style.display = '';
+        }, 8000);
+      }
+    }
+
+    function updateBgBanner(current, total, label) {
+      const banner = document.getElementById('bgGenBanner');
+      const pct = Math.round((current / total) * 100);
+      document.getElementById('bgGenText').textContent = `Step ${current + (current < total ? 1 : 0)}/${total}: ${label}`;
+      document.getElementById('bgGenBarFill').style.width = pct + '%';
+
+      if (current >= total) {
+        banner.classList.add('complete');
+        document.getElementById('bgGenSpinner').style.display = 'none';
+        document.getElementById('bgGenText').textContent = 'Page generated successfully!';
+        document.getElementById('bgGenOpenBtn').textContent = 'View Pages';
+        document.getElementById('bgGenOpenBtn').onclick = function() {
+          banner.classList.remove('active', 'complete');
+          showPage('pages');
+        };
+      } else {
+        banner.classList.add('active');
+      }
+    }
+
+    function minimizeGeneration() {
+      // Close modal but keep generation running
+      document.getElementById('generateModal').classList.remove('active');
+      document.body.style.overflow = '';
+      showToast('Page is generating in the background. You can continue working.', 'info');
+    }
+
+    function openGenerateModalToProgress() {
+      // Re-open the generate modal to show current progress
+      if (bgGenerationRunning) {
+        document.getElementById('generateModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
       }
     }
 
@@ -7622,6 +7794,7 @@
       document.getElementById('generateBtn').innerHTML = '✨ Generate Page';
       document.getElementById('generateCancelBtn').textContent = 'Cancel';
       document.getElementById('generateCancelBtn').disabled = false;
+      document.getElementById('generateMinimizeBtn').style.display = 'none';
       document.getElementById('pipelineSummary').style.display = 'none';
       currentJobId = null;
     }
@@ -7835,7 +8008,12 @@
       document.getElementById('generateModal').classList.remove('active');
       document.body.style.overflow = '';
       pendingGenerateClientId = null;
-      resetGenerateModal();
+      if (bgGenerationRunning) {
+        // Generation still running - just minimize, don't reset
+        showToast('Page is generating in the background. You can continue working.', 'info');
+      } else {
+        resetGenerateModal();
+      }
     }
 
     function selectGenerateType(type) {
@@ -9292,5 +9470,16 @@
       }
     }
   </script>
+
+  <!-- Background Generation Banner -->
+  <div class="bg-gen-banner" id="bgGenBanner">
+    <div class="banner-spinner" id="bgGenSpinner"></div>
+    <div class="banner-progress">
+      <div class="banner-text" id="bgGenText">Generating page...</div>
+      <div class="banner-bar"><div class="banner-bar-fill" id="bgGenBarFill" style="width: 0%"></div></div>
+    </div>
+    <button class="banner-open-btn" id="bgGenOpenBtn" onclick="openGenerateModalToProgress()">Show Details</button>
+  </div>
+
 </body>
 </html>
