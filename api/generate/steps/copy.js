@@ -12,6 +12,7 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
   const strategy = stepOutputs.strategy?.result?.strategy || {};
   const researchData = stepOutputs.research?.result?.business_research || {};
   const brandGuide = stepOutputs.brand?.result?.brand_guide || {};
+  const { offer_details, cta_action, guarantee } = stepOutputs._config || {};
 
   // Get verified claims for fact-checking
   let verifiedClaims = [];
@@ -37,7 +38,10 @@ export async function runCopyStep({ job, stepOutputs, additionalInput, jobId }) 
     strategy,
     researchData,
     brandGuide,
-    verifiedClaims
+    verifiedClaims,
+    offer_details,
+    cta_action,
+    guarantee
   });
 
   const { text: responseText, tokensUsed, json: parsedJson } = await callClaudeWithFallback({
@@ -322,7 +326,7 @@ You're writing copy for an interactive savings calculator.
 // ============================================================
 // USER PROMPT BUILDER
 // ============================================================
-function buildCopyUserPrompt({ page_type, strategy, researchData, brandGuide, verifiedClaims }) {
+function buildCopyUserPrompt({ page_type, strategy, researchData, brandGuide, verifiedClaims, offer_details, cta_action, guarantee }) {
   return `Write compelling, conversion-optimized copy for a ${page_type} landing page.
 
 ## STRATEGIC FRAMEWORK (From strategy step - follow these directives)
@@ -361,6 +365,9 @@ ${verifiedClaims.map(c => `- [${c.claim_type}] ${c.claim_text}`).join('\n') || '
 ## VERIFIED TESTIMONIALS
 ${researchData.testimonials?.map(t => `- "${t.quote}" - ${t.author}${t.role ? `, ${t.role}` : ''}`).join('\n') || 'No verified testimonials available - do not invent quotes. Use general social proof language instead.'}
 
+${offer_details ? `## OFFER DETAILS\n${offer_details}\nUse these real offer details throughout the copy when referencing what the customer gets.\n` : ''}
+${cta_action ? `## CTA ACTION\nThe primary call-to-action text should be: "${cta_action}"\nUse this exact CTA text on all primary buttons and calls to action.\n` : ''}
+${guarantee ? `## GUARANTEE LANGUAGE\n${guarantee}\nIncorporate this guarantee into the risk reversal section, footer CTA, and anywhere the copy addresses buyer hesitation.\n` : ''}
 ## CRITICAL RULES
 1. NEVER invent statistics, percentages, or numbers that aren't in the verified claims
 2. NEVER create fake testimonial quotes

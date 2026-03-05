@@ -10,6 +10,7 @@ export async function runStrategyStep({ job, stepOutputs, additionalInput, jobId
   const { page_type, target_audience, offer_details, template_id } = { ...job, ...additionalInput };
   const researchData = stepOutputs.research?.result?.business_research || {};
   const brandGuide = stepOutputs.brand?.result?.brand_guide || {};
+  const { traffic_source, guarantee, cta_action } = stepOutputs._config || {};
 
   // Load skill context for richer strategy output
   const skillContext = getStrategySkillContext();
@@ -95,6 +96,9 @@ Brand Voice: ${researchData.brand_voice || brandGuide.brand_voice?.tone || 'prof
 
 ${target_audience ? `SPECIFIC TARGET AUDIENCE: ${target_audience}` : ''}
 ${offer_details ? `OFFER DETAILS: ${offer_details}` : ''}
+${traffic_source ? `TRAFFIC SOURCE: ${traffic_source} (calibrate awareness level and messaging based on where this traffic is coming from)` : ''}
+${guarantee ? `GUARANTEE: ${guarantee} (factor this into the risk reversal and CTA strategy)` : ''}
+${cta_action ? `CTA ACTION: ${cta_action} (the primary action we want visitors to take)` : ''}
 
 VERIFIED CLAIMS AVAILABLE (use these, don't make up statistics):
 ${verifiedClaims.map(c => `- [${c.claim_type}] ${c.claim_text}`).join('\n') || 'No verified claims available - avoid statistics'}

@@ -68,6 +68,11 @@
       --radius-lg: 16px;
       --radius-xl: 20px;
 
+      /* Missing referenced variables */
+      --border: #E8EDEF;
+      --text-secondary: #636E72;
+      --bg-secondary: #F0F2F5;
+
       /* Transitions */
       --transition-fast: 0.15s ease;
       --transition-normal: 0.25s ease;
@@ -3983,6 +3988,7 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--text-light);
     }
+
   </style>
 </head>
 <body>
@@ -4116,26 +4122,6 @@
         <div class="nav-divider"></div>
 
         <div class="nav-section">
-          <div class="nav-section-title">Analytics</div>
-          <a class="nav-item" data-page="analytics">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 20V10"/>
-              <path d="M12 20V4"/>
-              <path d="M6 20v-6"/>
-            </svg>
-            <span class="nav-item-label">Reports</span>
-          </a>
-          <a class="nav-item" data-page="leads">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
-            <span class="nav-item-label">Leads</span>
-          </a>
-        </div>
-
-        <div class="nav-divider"></div>
-
-        <div class="nav-section">
           <div class="nav-section-title">Settings</div>
           <a class="nav-item" data-page="domains">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4163,6 +4149,13 @@
     <main class="main-content">
       <header class="main-header">
         <div class="header-left">
+          <button class="mobile-menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
           <span class="header-greeting">Welcome back!</span>
           <h1 class="page-title" id="mainPageTitle">Dashboard</h1>
         </div>
@@ -4198,12 +4191,7 @@
                     <polyline points="14,2 14,8 20,8"/>
                   </svg>
                 </div>
-                <div class="metric-trend up">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="18 15 12 9 6 15"/>
-                  </svg>
-                  12%
-                </div>
+                <div class="metric-trend" style="opacity: 0.4;">--</div>
               </div>
               <div class="metric-card-body">
                 <div class="metric-label">Total Pages</div>
@@ -4220,12 +4208,7 @@
                     <polyline points="12 6 12 12 16 14"/>
                   </svg>
                 </div>
-                <div class="metric-trend up">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="18 15 12 9 6 15"/>
-                  </svg>
-                  8%
-                </div>
+                <div class="metric-trend" style="opacity: 0.4;">--</div>
               </div>
               <div class="metric-card-body">
                 <div class="metric-label">Live Pages</div>
@@ -4242,12 +4225,7 @@
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
                 </div>
-                <div class="metric-trend up">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="18 15 12 9 6 15"/>
-                  </svg>
-                  24%
-                </div>
+                <div class="metric-trend" style="opacity: 0.4;">--</div>
               </div>
               <div class="metric-card-body">
                 <div class="metric-label">Total Views</div>
@@ -4266,12 +4244,7 @@
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                 </div>
-                <div class="metric-trend up">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="18 15 12 9 6 15"/>
-                  </svg>
-                  18%
-                </div>
+                <div class="metric-trend" style="opacity: 0.4;">--</div>
               </div>
               <div class="metric-card-body">
                 <div class="metric-label">Total Leads</div>
@@ -5303,6 +5276,50 @@
     </main>
   </div>
 
+  <!-- Add Client Modal -->
+  <div class="modal-overlay" id="addClientModal">
+    <div class="modal" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>Add New Client</h3>
+        <button class="modal-close" onclick="closeAddClientModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="newClientName">Client Name <span>*</span></label>
+          <input type="text" id="newClientName" placeholder="e.g., Acme Corp" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="newClientUrl">Website URL</label>
+          <input type="text" id="newClientUrl" placeholder="https://example.com" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="newClientIndustry">Industry</label>
+          <select id="newClientIndustry" class="form-input">
+            <option value="">-- Select Industry --</option>
+            <option value="E-commerce">E-commerce</option>
+            <option value="SaaS">SaaS</option>
+            <option value="Health & Wellness">Health & Wellness</option>
+            <option value="Finance">Finance</option>
+            <option value="Education">Education</option>
+            <option value="Real Estate">Real Estate</option>
+            <option value="Food & Beverage">Food & Beverage</option>
+            <option value="Travel">Travel</option>
+            <option value="Technology">Technology</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Fitness">Fitness</option>
+            <option value="Beauty">Beauty</option>
+            <option value="Legal">Legal</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAddClientModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddClient()">Add Client</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Domain Modal -->
   <div class="modal-overlay" id="addDomainModal">
     <div class="modal">
@@ -5352,8 +5369,10 @@
               <input type="text" id="pageName" placeholder="e.g., Summer Sale Landing Page" required>
             </div>
             <div class="form-group">
-              <label for="clientName">Client Name</label>
-              <input type="text" id="clientName" placeholder="e.g., Acme Corp">
+              <label for="clientName">Client</label>
+              <select id="clientName" class="form-input">
+                <option value="">-- Select Client --</option>
+              </select>
             </div>
           </div>
           <div class="form-group">
@@ -5482,8 +5501,53 @@
           </div>
 
           <div class="form-group">
+            <label for="generateOfferDetails">Offer Details</label>
+            <textarea id="generateOfferDetails" style="min-height: 80px;" placeholder="What's your offer? Describe the product/service, pricing, and any promotions..."></textarea>
+          </div>
+
+          <div class="form-group">
             <label for="generateAudience">Target Audience</label>
             <textarea id="generateAudience" style="min-height: 80px;" placeholder="Describe your ideal customer..."></textarea>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="generateCtaAction">CTA Action</label>
+              <select id="generateCtaAction">
+                <option value="">-- Select CTA --</option>
+                <option value="Learn More">Learn More</option>
+                <option value="Shop Now">Shop Now</option>
+                <option value="Sign Up">Sign Up</option>
+                <option value="Book Now">Book Now</option>
+                <option value="Get Quote">Get Quote</option>
+                <option value="Download">Download</option>
+                <option value="Contact Us">Contact Us</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="generateCtaUrl">CTA Destination URL</label>
+              <input type="text" id="generateCtaUrl" placeholder="https://example.com/signup">
+            </div>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="generateGuarantee">Guarantee / Risk Reversal</label>
+              <input type="text" id="generateGuarantee" placeholder="e.g., 30-day money-back guarantee">
+            </div>
+            <div class="form-group">
+              <label for="generateTrafficSource">Traffic Source</label>
+              <select id="generateTrafficSource">
+                <option value="">-- Select Source --</option>
+                <option value="Facebook Ads">Facebook Ads</option>
+                <option value="Google Ads">Google Ads</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Email">Email</option>
+                <option value="Organic">Organic</option>
+                <option value="TikTok">TikTok</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group">
@@ -6053,32 +6117,52 @@
       `;
     }
 
+    // ============================================
+    // ADD CLIENT MODAL
+    // ============================================
     function openAddClientModal() {
-      const name = prompt('Enter client name:');
-      if (!name) return;
-
-      const url = prompt('Enter client website URL (optional):');
-      createClient(name, url);
+      document.getElementById('newClientName').value = '';
+      document.getElementById('newClientUrl').value = '';
+      document.getElementById('newClientIndustry').value = '';
+      document.getElementById('addClientModal').classList.add('active');
     }
 
-    async function createClient(name, websiteUrl) {
+    function closeAddClientModal() {
+      document.getElementById('addClientModal').classList.remove('active');
+    }
+
+    async function submitAddClient() {
+      const name = document.getElementById('newClientName').value.trim();
+      if (!name) {
+        showToast('Please enter a client name', 'error');
+        return;
+      }
+      const websiteUrl = document.getElementById('newClientUrl').value.trim() || null;
+      const industry = document.getElementById('newClientIndustry').value || null;
+      await createClient(name, websiteUrl, industry);
+      closeAddClientModal();
+    }
+
+    async function createClient(name, websiteUrl, industry) {
       try {
+        const body = { name, website_url: websiteUrl };
+        if (industry) body.industry = industry;
         const res = await fetch('/api/clients', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, website_url: websiteUrl || null })
+          body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error(`Failed to create client (HTTP ${res.status})`);
         const result = await res.json();
         if (result.success) {
-          alert('Client created! You can now generate pages for this client.');
+          showToast('Client created successfully!');
           loadClients();
           loadClientsPage();
         } else {
           throw new Error(result.error);
         }
       } catch (error) {
-        alert('Error creating client: ' + error.message);
+        showToast('Error creating client: ' + error.message, 'error');
       }
     }
 
@@ -7027,6 +7111,14 @@
       document.getElementById('pageId').value = '';
       document.getElementById('deployResult').innerHTML = '';
       document.getElementById('saveDraftBtn').style.display = 'inline-flex';
+
+      // Populate client dropdown from loaded clients
+      const clientSelect = document.getElementById('clientName');
+      clientSelect.innerHTML = '<option value="">-- Select Client --</option>';
+      clients.forEach(c => {
+        clientSelect.innerHTML += `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`;
+      });
+
       document.getElementById('createModal').classList.add('active');
       document.body.style.overflow = 'hidden';
     }
@@ -7173,8 +7265,13 @@
             client_id: clientId,
             page_type: selectedGenerateType,
             target_audience: document.getElementById('generateAudience').value.trim() || null,
-            offer_details: `Tone: ${document.getElementById('generateTone').value}`,
-            website_url: product.startsWith('http') ? product : null
+            offer_details: document.getElementById('generateOfferDetails').value.trim() || null,
+            website_url: product.startsWith('http') ? product : null,
+            cta_action: document.getElementById('generateCtaAction').value || null,
+            cta_url: document.getElementById('generateCtaUrl').value.trim() || null,
+            guarantee: document.getElementById('generateGuarantee').value.trim() || null,
+            traffic_source: document.getElementById('generateTrafficSource').value || null,
+            tone: document.getElementById('generateTone').value
           })
         });
 
@@ -7473,6 +7570,11 @@
       selectedGenerateType = null;
       document.querySelectorAll('.generate-option').forEach(el => el.classList.remove('selected'));
       document.getElementById('generateAudience').value = '';
+      document.getElementById('generateOfferDetails').value = '';
+      document.getElementById('generateCtaAction').value = '';
+      document.getElementById('generateCtaUrl').value = '';
+      document.getElementById('generateGuarantee').value = '';
+      document.getElementById('generateTrafficSource').value = '';
       document.getElementById('generateTone').value = 'professional';
 
       // Pre-fill product URL from client data if generating from client context

@@ -22,7 +22,12 @@ export default async function handler(req, res) {
       template_id,
       target_audience,
       offer_details,
-      website_url  // URL to research
+      website_url,  // URL to research
+      cta_action,
+      cta_url,
+      guarantee,
+      traffic_source,
+      tone
     } = req.body;
 
     if (!page_type) {
@@ -73,9 +78,17 @@ export default async function handler(req, res) {
       assembly: null
     };
 
-    // Store website_url in step_outputs for research step to use
-    if (website_url) {
-      stepOutputs._config = { website_url };
+    // Store config fields in step_outputs for pipeline steps to use
+    const config = {};
+    if (website_url) config.website_url = website_url;
+    if (offer_details) config.offer_details = offer_details;
+    if (cta_action) config.cta_action = cta_action;
+    if (cta_url) config.cta_url = cta_url;
+    if (guarantee) config.guarantee = guarantee;
+    if (traffic_source) config.traffic_source = traffic_source;
+    if (tone) config.tone = tone;
+    if (Object.keys(config).length > 0) {
+      stepOutputs._config = config;
     }
 
     await sql`

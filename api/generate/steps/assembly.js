@@ -10,6 +10,7 @@ export async function runAssemblyStep({ job, stepOutputs, additionalInput, jobId
   const designResult = stepOutputs.design?.result || {};
   const copyResult = stepOutputs.copy?.result || {};
   const researchData = stepOutputs.research?.result?.business_research || {};
+  const { cta_url } = stepOutputs._config || {};
 
   // Use cleaned HTML from fact-check, or original from design
   let html = factCheckResult.cleaned_html || designResult.html || '';
@@ -80,7 +81,13 @@ export async function runAssemblyStep({ job, stepOutputs, additionalInput, jobId
     qaResults.warnings.push('No responsive CSS patterns detected');
   }
 
-  // 8. Strip any em dashes that slipped through
+  // 8. Replace placeholder CTA hrefs with actual URL
+  if (cta_url && cta_url.trim()) {
+    html = html.replace(/href="#"/g, `href="${cta_url}"`);
+    html = html.replace(/href="\{\{cta_url\}\}"/g, `href="${cta_url}"`);
+  }
+
+  // 9. Strip any em dashes that slipped through
   html = html.replace(/\u2014/g, ' - ');
   html = html.replace(/&mdash;/g, ' - ');
 

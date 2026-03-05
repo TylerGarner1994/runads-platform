@@ -11,6 +11,7 @@ export async function runDesignStep({ job, stepOutputs, additionalInput, jobId }
   const brandGuide = stepOutputs.brand?.result?.brand_guide || {};
   const strategy = stepOutputs.strategy?.result?.strategy || {};
   const researchData = stepOutputs.research?.result?.business_research || {};
+  const { cta_url } = stepOutputs._config || {};
 
   const claudeApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
   if (!claudeApiKey) {
@@ -630,6 +631,7 @@ ${fontPairing.googleImport}
 8. Include ALL sections described in the page structure - do not skip any
 9. Use the EXACT copy text provided in PAGE COPY above - do NOT rewrite, rephrase, or invent new copy. The copy has already been professionally written.
 10. Use smooth scroll, hover effects, and modern CSS animations
+${cta_url ? `11. All CTA buttons must link to: ${cta_url}` : ''}
 
 Generate the COMPLETE HTML page. Return ONLY the HTML code starting with <!DOCTYPE html>. No markdown code blocks or explanations.`;
 
