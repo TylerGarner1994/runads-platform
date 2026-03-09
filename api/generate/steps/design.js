@@ -233,7 +233,10 @@ ${fontPairing.googleImport || '@import url("https://fonts.googleapis.com/css2?fa
 
 ### Spacing & Layout
 - Mobile-first responsive design
-- Max-width containers (720px for articles, 1200px for wider layouts)
+- CRITICAL: All <section> elements must be full-width (width: 100%) with backgrounds that stretch edge-to-edge
+- Inside each section, use a .container or .content-wrapper div with max-width (900px for articles, 1200px for wider layouts) and margin: 0 auto
+- This ensures NO gaps on wide monitors — backgrounds fill the screen, content stays readable
+- body and html must have margin: 0; padding: 0; width: 100%;
 - Section padding: 60-100px vertical, 20-24px horizontal on mobile
 - Use CSS clamp() for fluid typography
 - Generous whitespace between sections
@@ -277,6 +280,8 @@ ${fontPairing.googleImport || '@import url("https://fonts.googleapis.com/css2?fa
 - Use CSS custom properties (--variables) for colors and spacing
 - Include smooth scroll: html { scroll-behavior: smooth; }
 - Include box-sizing: border-box reset
+- Include html, body { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+- Include section { width: 100%; } with inner .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 - Include -webkit-font-smoothing: antialiased
 `;
 
